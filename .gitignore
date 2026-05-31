@@ -1,0 +1,13 @@
+*.gguf
+*.safetensors
+*.bin
+*.ckpt
+*.onnx
+*.mlx
+*.log
+.DS_Store
+.idea/
+__pycache__/
+*.pyc
+local-code-index.sqlite3
+local-code-index.sqlite3-*

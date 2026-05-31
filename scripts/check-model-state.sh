@@ -1,0 +1,38 @@
+#!/bin/zsh
+set -euo pipefail
+
+SCRIPT_DIR="${0:A:h}"
+ROOT="${SCRIPT_DIR:h}"
+if [[ -f "$ROOT/scripts/lib/profile.sh" ]]; then
+  source "$ROOT/scripts/lib/profile.sh"
+elif [[ -f "$SCRIPT_DIR/lib/profile.sh" ]]; then
+  source "$SCRIPT_DIR/lib/profile.sh"
+else
+  echo "Could not find scripts/lib/profile.sh" >&2
+  exit 1
+fi
+require_profile_vars LMS CHAT_ID EMBED_ID CHAT_MODEL_PATH EMBED_MODEL_PATH
+
+if [[ ! -x "$LMS" ]]; then
+  echo "LM Studio lms CLI not found at $LMS"
+  exit 1
+fi
+
+echo "Installed LM Studio models:"
+"$LMS" ls --json | jq -r '.[] | [.modelKey, .path, .format, (.quantization.name // "")] | @tsv'
+
+echo
+echo "Loaded LM Studio models:"
+"$LMS" ps || true
+
+missing=0
+"$LMS" ls --json | jq -e --arg id "$CHAT_ID" --arg path "$CHAT_MODEL_PATH" '.[] | select(.modelKey == $id or .path == $path)' >/dev/null || {
+  echo "Missing expected chat model: $CHAT_ID ($CHAT_MODEL_PATH)"
+  missing=1
+}
+"$LMS" ls --json | jq -e --arg id "$EMBED_ID" --arg path "$EMBED_MODEL_PATH" '.[] | select(.modelKey == $id or .path == $path)' >/dev/null || {
+  echo "Missing expected embedding model: $EMBED_ID ($EMBED_MODEL_PATH)"
+  missing=1
+}
+
+exit "$missing"

@@ -1,0 +1,64 @@
+{
+  "profile": "24GB MacBook Pro local coding profile",
+  "profile_file": "/Users/ohmz/StudioProjects/llm-opencode/scripts/lib/../../config/profile-24gb.env",
+  "target_user": "ohmz",
+  "target_home": "/Users/ohmz",
+  "home": "/Users/ohmz",
+  "arch": "arm64",
+  "hw_memsize_bytes": 25769803776,
+  "macos": {
+    "ProductName": "macOS",
+    "ProductVersion": "26.5",
+    "BuildVersion": "25F71"
+  },
+  "apps": {
+    "lm_studio": "0.4.15+2",
+    "opencode": "1.15.12"
+  },
+  "lmstudio": {
+    "server": "http://127.0.0.1:1234/v1",
+    "host": "127.0.0.1",
+    "port": "1234",
+    "chat_model": "qwen3.6-27b",
+    "chat_model_path": "NexVeridian/Qwen3.6-27B-3bit",
+    "chat_model_format": "safetensors",
+    "chat_model_quantization": "3bit",
+    "chat_context": 12288,
+    "chat_output": 768,
+    "embedding_model": "text-embedding-nomic-embed-text-v1.5",
+    "runtime_ls": "LLM ENGINE                                         SELECTED    MODEL FORMAT\nllama.cpp-mac-arm64-apple-metal-advsimd@2.18.0        \u2713            GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@2.17.0                     GGUF    \nmlx-llm-mac-arm64-apple-metal-advsimd@1.8.5                        MLX     \nmlx-llm-mac-arm64-apple-metal-nax-advsimd@1.8.5       \u2713            MLX"
+  },
+  "opencode": {
+    "config": "/Users/ohmz/.config/opencode/opencode.json",
+    "desktop_state": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
+    "index_db": "/Users/ohmz/.cache/opencode/local-code-index.sqlite3",
+    "mcp": [
+      "local_code_index",
+      "local_dev_tools",
+      "context7",
+      "gh_grep"
+    ],
+    "agents": [
+      "build",
+      "plan",
+      "debug",
+      "review"
+    ],
+    "commands": [
+      "/index",
+      "/reindex",
+      "/search-index",
+      "/debug",
+      "/review",
+      "/docs"
+    ],
+    "lsp": [
+      {
+        "name": "sourcekit-lsp",
+        "command": "/usr/bin/sourcekit-lsp",
+        "developer_dir": "/Applications/Xcode.app/Contents/Developer",
+        "toolchains": "com.apple.dt.toolchain.XcodeDefault"
+      }
+    ]
+  }
+}

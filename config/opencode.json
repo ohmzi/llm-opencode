@@ -1,0 +1,247 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": [
+    "lmstudio"
+  ],
+  "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "whitelist": [
+        "qwen3.6-27b"
+      ],
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1",
+        "apiKey": "lmstudio",
+        "timeout": 900000,
+        "chunkTimeout": 900000
+      },
+      "models": {
+        "qwen3.6-27b": {
+          "name": "Qwen3.6 27B 3-bit MLX (local, 12K tools)",
+          "tool_call": true,
+          "limit": {
+            "context": 12288,
+            "output": 768
+          }
+        }
+      }
+    }
+  },
+  "model": "lmstudio/qwen3.6-27b",
+  "small_model": "lmstudio/qwen3.6-27b",
+  "default_agent": "build",
+  "instructions": [
+    "/Users/ohmz/.config/opencode/instructions/local-coding-workflow.md"
+  ],
+  "permission": {
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "bash": {
+      "*": "allow",
+      "sudo *": "ask",
+      "rm -rf *": "ask",
+      "rm -fr *": "ask",
+      "git reset *": "ask",
+      "git checkout *": "ask",
+      "git clean *": "ask",
+      "git push*": "ask",
+      "git commit*": "ask",
+      "brew *": "ask",
+      "npm install*": "ask"
+    },
+    "task": "allow",
+    "todowrite": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "lsp": "allow",
+    "question": "allow",
+    "doom_loop": "allow",
+    "external_directory": "ask",
+    "code_index_*": "allow",
+    "dev_*": "allow",
+    "context7_*": "allow",
+    "gh_grep_*": "allow"
+  },
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "lmstudio/qwen3.6-27b",
+      "temperature": 0.15,
+      "steps": 28,
+      "description": "Implement, edit, run checks."
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "lmstudio/qwen3.6-27b",
+      "temperature": 0.1,
+      "steps": 16,
+      "description": "Plan with read/search only."
+    },
+    "debug": {
+      "mode": "all",
+      "model": "lmstudio/qwen3.6-27b",
+      "temperature": 0.1,
+      "steps": 24,
+      "description": "Reproduce, inspect logs, fix."
+    },
+    "review": {
+      "mode": "subagent",
+      "model": "lmstudio/qwen3.6-27b",
+      "temperature": 0.05,
+      "steps": 18,
+      "description": "Review diffs and risks."
+    }
+  },
+  "command": {
+    "index": {
+      "description": "Refresh local RAG.",
+      "agent": "build",
+      "subtask": true,
+      "template": "Run code_index_status then code_index_refresh force=false. Summarize roots and counts."
+    },
+    "reindex": {
+      "description": "Rebuild local RAG.",
+      "agent": "build",
+      "subtask": true,
+      "template": "Run code_index_refresh force=true then code_index_status. Report errors only if present."
+    },
+    "search-index": {
+      "description": "Semantic code search.",
+      "agent": "build",
+      "subtask": true,
+      "template": "Run code_index_search for: $ARGUMENTS. Return top files only."
+    },
+    "debug": {
+      "description": "Debug issue.",
+      "agent": "debug",
+      "subtask": false,
+      "template": "Debug: $ARGUMENTS. Use dev_status, grep/RAG/LSP, then focused checks."
+    },
+    "review": {
+      "description": "Review changes.",
+      "agent": "review",
+      "subtask": true,
+      "template": "Review current git diff for bugs and missed tests. Do not edit."
+    },
+    "docs": {
+      "description": "Docs/examples lookup.",
+      "agent": "build",
+      "subtask": true,
+      "template": "Use context7 first, then gh_grep if helpful: $ARGUMENTS."
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 2048
+  },
+  "tool_output": {
+    "max_lines": 300,
+    "max_bytes": 10000
+  },
+  "lsp": {
+    "sourcekit-lsp": {
+      "command": [
+        "/usr/bin/sourcekit-lsp"
+      ],
+      "extensions": [
+        ".swift",
+        ".m",
+        ".mm",
+        ".h"
+      ],
+      "env": {
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "TOOLCHAINS": "com.apple.dt.toolchain.XcodeDefault"
+      }
+    }
+  },
+  "formatter": true,
+  "snapshot": true,
+  "share": "disabled",
+  "shell": "/bin/zsh",
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      ".gradle/**",
+      ".idea/**",
+      ".vscode/**",
+      ".cache/**",
+      ".dart_tool/**",
+      ".next/**",
+      ".swiftpm/**",
+      "DerivedData/**",
+      "Pods/**",
+      "build/**",
+      "dist/**",
+      "node_modules/**",
+      "out/**",
+      "target/**",
+      "__pycache__/**"
+    ]
+  },
+  "mcp": {
+    "local_code_index": {
+      "type": "local",
+      "command": [
+        "/usr/bin/python3",
+        "/Users/ohmz/.config/opencode/mcp/local_code_index.py"
+      ],
+      "environment": {
+        "OPENCODE_INDEX_ROOTS": "auto",
+        "OPENCODE_INDEX_AUTODISCOVER": "1",
+        "OPENCODE_DESKTOP_STATE": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
+        "OPENCODE_INDEX_BACKGROUND": "1",
+        "OPENCODE_INDEX_BACKGROUND_SECONDS": "300",
+        "OPENCODE_INDEX_DB": "/Users/ohmz/.cache/opencode/local-code-index.sqlite3",
+        "LMSTUDIO_EMBEDDING_URL": "http://127.0.0.1:1234/v1/embeddings",
+        "LMSTUDIO_EMBEDDING_MODEL": "text-embedding-nomic-embed-text-v1.5"
+      },
+      "enabled": true,
+      "timeout": 600000
+    },
+    "local_dev_tools": {
+      "type": "local",
+      "command": [
+        "/usr/bin/python3",
+        "/Users/ohmz/.config/opencode/mcp/local_dev_tools.py"
+      ],
+      "environment": {
+        "OPENCODE_DEV_ROOTS": "auto",
+        "OPENCODE_DESKTOP_STATE": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat"
+      },
+      "enabled": true,
+      "timeout": 180000
+    },
+    "context7": {
+      "type": "local",
+      "command": [
+        "/usr/bin/python3",
+        "/Users/ohmz/.config/opencode/mcp/remote_mcp_proxy.py"
+      ],
+      "environment": {
+        "PROXY_TARGET": "context7",
+        "PROXY_TIMEOUT_SECONDS": "60"
+      },
+      "enabled": true,
+      "timeout": 60000
+    },
+    "gh_grep": {
+      "type": "local",
+      "command": [
+        "/usr/bin/python3",
+        "/Users/ohmz/.config/opencode/mcp/remote_mcp_proxy.py"
+      ],
+      "environment": {
+        "PROXY_TARGET": "gh_grep",
+        "PROXY_TIMEOUT_SECONDS": "60"
+      },
+      "enabled": true,
+      "timeout": 60000
+    }
+  }
+}
