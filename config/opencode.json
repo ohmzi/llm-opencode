@@ -3,12 +3,17 @@
   "enabled_providers": [
     "lmstudio"
   ],
+  "default_agent": "build",
+  "instructions": [
+    "/Users/ohmz/.config/opencode/qwen36-instructions.md",
+    "/Users/ohmz/.config/opencode/local-coding-workflow.md"
+  ],
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "LM Studio (local)",
       "whitelist": [
-        "qwen3.6-27b"
+        "local-coder"
       ],
       "options": {
         "baseURL": "http://127.0.0.1:1234/v1",
@@ -17,153 +22,33 @@
         "chunkTimeout": 900000
       },
       "models": {
-        "qwen3.6-27b": {
-          "name": "Qwen3.6 27B 3-bit MLX (local, 12K tools)",
+        "local-coder": {
+          "name": "Qwen3.6 27B MLX 8-bit (local, 32K)",
           "tool_call": true,
           "limit": {
-            "context": 12288,
-            "output": 768
+            "context": 32768,
+            "output": 4096
           }
         }
       }
     }
   },
-  "model": "lmstudio/qwen3.6-27b",
-  "small_model": "lmstudio/qwen3.6-27b",
-  "default_agent": "build",
-  "instructions": [
-    "/Users/ohmz/.config/opencode/instructions/local-coding-workflow.md"
-  ],
-  "permission": {
-    "read": "allow",
-    "edit": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "list": "allow",
-    "bash": {
-      "*": "allow",
-      "sudo *": "ask",
-      "rm -rf *": "ask",
-      "rm -fr *": "ask",
-      "git reset *": "ask",
-      "git checkout *": "ask",
-      "git clean *": "ask",
-      "git push*": "ask",
-      "git commit*": "ask",
-      "brew *": "ask",
-      "npm install*": "ask"
-    },
-    "task": "allow",
-    "todowrite": "allow",
-    "webfetch": "allow",
-    "websearch": "allow",
-    "lsp": "allow",
-    "question": "allow",
-    "doom_loop": "allow",
-    "external_directory": "ask",
-    "code_index_*": "allow",
-    "dev_*": "allow",
-    "context7_*": "allow",
-    "gh_grep_*": "allow"
-  },
-  "agent": {
-    "build": {
-      "mode": "primary",
-      "model": "lmstudio/qwen3.6-27b",
-      "temperature": 0.15,
-      "steps": 28,
-      "description": "Implement, edit, run checks."
-    },
-    "plan": {
-      "mode": "primary",
-      "model": "lmstudio/qwen3.6-27b",
-      "temperature": 0.1,
-      "steps": 16,
-      "description": "Plan with read/search only."
-    },
-    "debug": {
-      "mode": "all",
-      "model": "lmstudio/qwen3.6-27b",
-      "temperature": 0.1,
-      "steps": 24,
-      "description": "Reproduce, inspect logs, fix."
-    },
-    "review": {
-      "mode": "subagent",
-      "model": "lmstudio/qwen3.6-27b",
-      "temperature": 0.05,
-      "steps": 18,
-      "description": "Review diffs and risks."
-    }
-  },
-  "command": {
-    "index": {
-      "description": "Refresh local RAG.",
-      "agent": "build",
-      "subtask": true,
-      "template": "Run code_index_status then code_index_refresh force=false. Summarize roots and counts."
-    },
-    "reindex": {
-      "description": "Rebuild local RAG.",
-      "agent": "build",
-      "subtask": true,
-      "template": "Run code_index_refresh force=true then code_index_status. Report errors only if present."
-    },
-    "search-index": {
-      "description": "Semantic code search.",
-      "agent": "build",
-      "subtask": true,
-      "template": "Run code_index_search for: $ARGUMENTS. Return top files only."
-    },
-    "debug": {
-      "description": "Debug issue.",
-      "agent": "debug",
-      "subtask": false,
-      "template": "Debug: $ARGUMENTS. Use dev_status, grep/RAG/LSP, then focused checks."
-    },
-    "review": {
-      "description": "Review changes.",
-      "agent": "review",
-      "subtask": true,
-      "template": "Review current git diff for bugs and missed tests. Do not edit."
-    },
-    "docs": {
-      "description": "Docs/examples lookup.",
-      "agent": "build",
-      "subtask": true,
-      "template": "Use context7 first, then gh_grep if helpful: $ARGUMENTS."
-    }
-  },
+  "model": "lmstudio/local-coder",
+  "small_model": "lmstudio/local-coder",
+  "share": "disabled",
+  "autoupdate": "notify",
+  "formatter": true,
+  "snapshot": true,
+  "shell": "/bin/zsh",
   "compaction": {
     "auto": true,
     "prune": true,
-    "reserved": 2048
+    "reserved": 10000
   },
   "tool_output": {
-    "max_lines": 300,
-    "max_bytes": 10000
+    "max_lines": 500,
+    "max_bytes": 24000
   },
-  "lsp": {
-    "sourcekit-lsp": {
-      "command": [
-        "/usr/bin/sourcekit-lsp"
-      ],
-      "extensions": [
-        ".swift",
-        ".m",
-        ".mm",
-        ".h"
-      ],
-      "env": {
-        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
-        "TOOLCHAINS": "com.apple.dt.toolchain.XcodeDefault"
-      }
-    }
-  },
-  "formatter": true,
-  "snapshot": true,
-  "share": "disabled",
-  "shell": "/bin/zsh",
   "watcher": {
     "ignore": [
       ".git/**",
@@ -172,8 +57,10 @@
       ".vscode/**",
       ".cache/**",
       ".dart_tool/**",
+      ".lmstudio/**",
       ".next/**",
       ".swiftpm/**",
+      ".venv/**",
       "DerivedData/**",
       "Pods/**",
       "build/**",
@@ -183,6 +70,203 @@
       "target/**",
       "__pycache__/**"
     ]
+  },
+  "permission": {
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "task": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "lsp": "allow",
+    "skill": "allow",
+    "external_directory": "ask",
+    "repo_clone": "ask",
+    "repo_overview": "allow",
+    "doom_loop": "ask",
+    "local_code_index_*": "allow",
+    "local_dev_tools_project_overview": "allow",
+    "local_dev_tools_git_status": "allow",
+    "local_dev_tools_file_tree": "allow",
+    "local_dev_tools_dependency_summary": "allow",
+    "local_dev_tools_run_command": "ask",
+    "local_dev_tools_debug_command": "ask",
+    "context7_*": "allow",
+    "gh_grep_*": "allow",
+    "bash": {
+      "*": "ask",
+      "pwd": "allow",
+      "ls": "allow",
+      "ls *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git branch*": "allow",
+      "git rev-parse*": "allow",
+      "rg *": "allow",
+      "grep *": "allow",
+      "cat *": "allow",
+      "sed -n *": "allow",
+      "npm test*": "allow",
+      "npm run test*": "allow",
+      "pnpm test*": "allow",
+      "pnpm run test*": "allow",
+      "yarn test*": "allow",
+      "python -m pytest*": "allow",
+      "pytest*": "allow",
+      "swift test*": "allow",
+      "./gradlew test*": "allow",
+      "gradle test*": "allow",
+      "go test*": "allow",
+      "cargo test*": "allow",
+      "xcodebuild -list*": "allow"
+    }
+  },
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.2,
+      "steps": 80,
+      "description": "Primary implementation agent. Edits files, coordinates subagents, and runs narrow verification."
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.1,
+      "steps": 35,
+      "description": "Read-only planning agent. Decomposes work, identifies risks, and suggests verification."
+    },
+    "codebase-researcher": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.1,
+      "steps": 40,
+      "description": "Read-only subagent for finding where behavior lives using RAG, grep/glob/read, file tree, dependency summaries, and LSP."
+    },
+    "debugger": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.1,
+      "steps": 45,
+      "description": "Read-only subagent for failing commands, tests, runtime errors, stack traces, and reproduction paths."
+    },
+    "test-runner": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.05,
+      "steps": 35,
+      "description": "Read-only subagent that detects project type and runs the narrowest useful validation first."
+    },
+    "code-reviewer": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.05,
+      "steps": 35,
+      "description": "Read-only subagent for reviewing diffs and code paths for bugs, regressions, maintainability, missing tests, and security concerns."
+    },
+    "doc-researcher": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.1,
+      "steps": 35,
+      "description": "Read-only subagent for current docs and real-world examples through Context7, gh_grep, web fetch, and web search."
+    },
+    "security-auditor": {
+      "mode": "subagent",
+      "model": "lmstudio/local-coder",
+      "temperature": 0.05,
+      "steps": 40,
+      "description": "Read-only subagent for input validation, auth, secrets, injection, unsafe filesystem/shell use, and dependency risk."
+    }
+  },
+  "command": {
+    "research": {
+      "description": "Find where behavior lives.",
+      "agent": "codebase-researcher",
+      "subtask": true,
+      "template": "Research: $ARGUMENTS. Use local_code_index first, then grep/glob/read, local_dev_tools, and LSP. Return likely files and why."
+    },
+    "debug": {
+      "description": "Debug issue.",
+      "agent": "debugger",
+      "subtask": true,
+      "template": "Debug: $ARGUMENTS. Reproduce narrowly, capture output with local_dev_tools when useful, and return root cause plus fix options."
+    },
+    "test": {
+      "description": "Run narrow validation.",
+      "agent": "test-runner",
+      "subtask": true,
+      "template": "Detect project type and run the narrowest useful validation for: $ARGUMENTS. Keep commands bounded and summarize failures."
+    },
+    "review": {
+      "description": "Review current changes or target files.",
+      "agent": "code-reviewer",
+      "subtask": true,
+      "template": "Review current changes or target files: $ARGUMENTS. Prioritize bugs, regressions, missing tests, and security risks. Do not edit."
+    },
+    "docs": {
+      "description": "Look up current docs and examples.",
+      "agent": "doc-researcher",
+      "subtask": true,
+      "template": "Research docs/examples for: $ARGUMENTS. Use context7 first, gh_grep second, and web search/fetch if needed."
+    },
+    "security": {
+      "description": "Read-only security audit.",
+      "agent": "security-auditor",
+      "subtask": true,
+      "template": "Run a read-only security audit for: $ARGUMENTS. Check input validation, auth, secrets, injection, unsafe filesystem/shell, and dependencies."
+    },
+    "index": {
+      "description": "Refresh and inspect local semantic index.",
+      "agent": "build",
+      "subtask": true,
+      "template": "Run code_index_status, then code_index_refresh force=false, then code_index_status again. Summarize roots, file counts, chunks, and errors."
+    },
+    "implement": {
+      "description": "Research, edit, and verify end to end.",
+      "agent": "build",
+      "subtask": false,
+      "template": "Implement: $ARGUMENTS. Research first with RAG/grep/LSP, make focused edits, and run narrow verification."
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "command": [
+        "npx",
+        "--yes",
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs"
+      ]
+    },
+    "eslint": {
+      "command": [
+        "npx",
+        "--yes",
+        "vscode-eslint-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs"
+      ]
+    }
   },
   "mcp": {
     "local_code_index": {
@@ -197,6 +281,7 @@
         "OPENCODE_DESKTOP_STATE": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
         "OPENCODE_INDEX_BACKGROUND": "1",
         "OPENCODE_INDEX_BACKGROUND_SECONDS": "300",
+        "OPENCODE_INDEX_AUTO_SYNC_SECONDS": "300",
         "OPENCODE_INDEX_DB": "/Users/ohmz/.cache/opencode/local-code-index.sqlite3",
         "LMSTUDIO_EMBEDDING_URL": "http://127.0.0.1:1234/v1/embeddings",
         "LMSTUDIO_EMBEDDING_MODEL": "text-embedding-nomic-embed-text-v1.5"
@@ -212,36 +297,26 @@
       ],
       "environment": {
         "OPENCODE_DEV_ROOTS": "auto",
-        "OPENCODE_DESKTOP_STATE": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat"
+        "OPENCODE_DESKTOP_STATE": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
+        "LOCAL_DEV_COMMAND_TIMEOUT": "120",
+        "LOCAL_DEV_MAX_TIMEOUT": "600",
+        "LOCAL_DEV_MAX_OUTPUT_CHARS": "24000",
+        "LOCAL_DEV_MAX_TREE_ENTRIES": "400"
       },
       "enabled": true,
-      "timeout": 180000
+      "timeout": 600000
     },
     "context7": {
-      "type": "local",
-      "command": [
-        "/usr/bin/python3",
-        "/Users/ohmz/.config/opencode/mcp/remote_mcp_proxy.py"
-      ],
-      "environment": {
-        "PROXY_TARGET": "context7",
-        "PROXY_TIMEOUT_SECONDS": "60"
-      },
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
       "enabled": true,
-      "timeout": 60000
+      "timeout": 600000
     },
     "gh_grep": {
-      "type": "local",
-      "command": [
-        "/usr/bin/python3",
-        "/Users/ohmz/.config/opencode/mcp/remote_mcp_proxy.py"
-      ],
-      "environment": {
-        "PROXY_TARGET": "gh_grep",
-        "PROXY_TIMEOUT_SECONDS": "60"
-      },
+      "type": "remote",
+      "url": "https://mcp.grep.app",
       "enabled": true,
-      "timeout": 60000
+      "timeout": 600000
     }
   }
 }

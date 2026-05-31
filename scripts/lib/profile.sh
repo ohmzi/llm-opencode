@@ -11,10 +11,20 @@ if [[ -n "${OPENCODE_BACKUP_PROFILE:-}" ]]; then
   _profile_candidates=("$OPENCODE_BACKUP_PROFILE")
 else
   _profile_candidates=(
+    "$_profile_root/config/profile.env"
+    "$_profile_root/config/profile-48gb.env"
     "$_profile_root/config/profile-24gb.env"
+    "$_profile_script_dir/profile.env"
+    "$_profile_script_dir/profile-48gb.env"
     "$_profile_script_dir/profile-24gb.env"
+    "$_profile_script_dir/../config/profile.env"
+    "$_profile_script_dir/../config/profile-48gb.env"
     "$_profile_script_dir/../config/profile-24gb.env"
+    "$_profile_script_dir/../../config/profile.env"
+    "$_profile_script_dir/../../config/profile-48gb.env"
     "$_profile_script_dir/../../config/profile-24gb.env"
+    "$HOME/.config/opencode/profile.env"
+    "$HOME/.config/opencode/profile-48gb.env"
     "$HOME/.config/opencode/profile-24gb.env"
   )
 fi

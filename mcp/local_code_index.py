@@ -26,8 +26,8 @@ MAX_CHARS_PER_CHUNK = 3600
 MAX_LINES_PER_CHUNK = 120
 CHUNK_OVERLAP_LINES = 18
 EMBED_BATCH_SIZE = 24
-AUTO_SYNC_SECONDS = 45
-BACKGROUND_SYNC_SECONDS = 60
+AUTO_SYNC_SECONDS = 300
+BACKGROUND_SYNC_SECONDS = 300
 SYNC_LOCK = threading.Lock()
 BACKGROUND_STARTED = False
 
@@ -483,7 +483,12 @@ def maybe_sync():
     row = conn.execute("select value from meta where key='last_sync'").fetchone()
     conn.close()
     last = int(row[0]) if row and row[0].isdigit() else 0
-    if time.time() - last > AUTO_SYNC_SECONDS:
+    raw = os.environ.get("OPENCODE_INDEX_AUTO_SYNC_SECONDS", str(AUTO_SYNC_SECONDS))
+    try:
+        auto_sync_seconds = max(15, int(raw))
+    except ValueError:
+        auto_sync_seconds = AUTO_SYNC_SECONDS
+    if time.time() - last > auto_sync_seconds:
         return sync_index(False)
     return None
 

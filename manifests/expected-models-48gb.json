@@ -1,0 +1,23 @@
+{
+  "profile": "48GB MacBook Pro Qwen3.6 MLX 8-bit agentic coding profile",
+  "models": [
+    {
+      "role": "chat",
+      "identifier": "local-coder",
+      "source": "froggeric/qwen3.6-27b-mlx-8bit",
+      "modelKey": "froggeric/qwen3.6-27b-mlx-8bit",
+      "path": "froggeric/Qwen3.6-27B-MLX-8bit",
+      "format": "safetensors",
+      "quantization": "8bit",
+      "context": 32768,
+      "output": 4096
+    },
+    {
+      "role": "embedding",
+      "identifier": "text-embedding-nomic-embed-text-v1.5",
+      "modelKey": "text-embedding-nomic-embed-text-v1.5",
+      "path": "nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q4_K_M.gguf",
+      "dimensions": 768
+    }
+  ]
+}
