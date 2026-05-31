@@ -14,18 +14,23 @@ else
     "$_profile_root/config/profile.env"
     "$_profile_root/config/profile-48gb.env"
     "$_profile_root/config/profile-24gb.env"
+    "$_profile_root/config/profile-96gb-ubuntu-nvidia.env"
     "$_profile_script_dir/profile.env"
     "$_profile_script_dir/profile-48gb.env"
     "$_profile_script_dir/profile-24gb.env"
+    "$_profile_script_dir/profile-96gb-ubuntu-nvidia.env"
     "$_profile_script_dir/../config/profile.env"
     "$_profile_script_dir/../config/profile-48gb.env"
     "$_profile_script_dir/../config/profile-24gb.env"
+    "$_profile_script_dir/../config/profile-96gb-ubuntu-nvidia.env"
     "$_profile_script_dir/../../config/profile.env"
     "$_profile_script_dir/../../config/profile-48gb.env"
     "$_profile_script_dir/../../config/profile-24gb.env"
+    "$_profile_script_dir/../../config/profile-96gb-ubuntu-nvidia.env"
     "$HOME/.config/opencode/profile.env"
     "$HOME/.config/opencode/profile-48gb.env"
     "$HOME/.config/opencode/profile-24gb.env"
+    "$HOME/.config/opencode/profile-96gb-ubuntu-nvidia.env"
   )
 fi
 
@@ -38,7 +43,7 @@ for _candidate in "${_profile_candidates[@]}"; do
 done
 
 if [[ -z "$LLM_OPENCODE_PROFILE" ]]; then
-  echo "Could not locate profile-24gb.env. Set OPENCODE_BACKUP_PROFILE to the profile path." >&2
+  echo "Could not locate an OpenCode backup profile. Set OPENCODE_BACKUP_PROFILE to the profile path." >&2
   return 1 2>/dev/null || exit 1
 fi
 

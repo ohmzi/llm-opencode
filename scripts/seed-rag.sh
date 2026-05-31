@@ -15,5 +15,9 @@ export OPENCODE_INDEX_DB="${OPENCODE_INDEX_DB}"
 export LMSTUDIO_EMBEDDING_URL="${LMSTUDIO_EMBEDDING_URL}"
 export LMSTUDIO_EMBEDDING_MODEL="${EMBED_ID}"
 
-"$ROOT/scripts/ensure-lmstudio-models.sh"
+ensure_models="${OPENCODE_ENSURE_MODELS_SCRIPT:-scripts/ensure-lmstudio-models.sh}"
+if [[ "$ensure_models" != /* ]]; then
+  ensure_models="$ROOT/$ensure_models"
+fi
+"$ensure_models"
 /usr/bin/python3 "$INDEXER" --index

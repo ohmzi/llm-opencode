@@ -42,3 +42,18 @@ When changing agents or commands, keep these loop-prevention rules unless there 
 - Qwen instructions keep `<|think_off|>` at the top.
 
 Do not copy model weights into this repo. Store identifiers, source paths, runtime URLs, checksums, and scripts so LM Studio remains the place that owns model downloads and updates.
+
+## Ubuntu RTX 3090 Profile
+
+For the separate Ubuntu i9 13th gen, 96 GB RAM, RTX 3090 setup, do not overwrite the 48 GB Mac
+defaults. Use the opt-in profile and config instead:
+
+```bash
+OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
+OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
+scripts/validate-profile-sync.sh
+```
+
+Follow `PLAN-96GB-UBUNTU-NVIDIA.md` on the Linux target. That profile keeps `lmstudio/local-coder`,
+the same agents, commands, MCPs, RAG, and LSP shape, but changes the chat model to
+`Qwen3.6-27B-UD-Q5_K_XL.gguf` through LM Studio's Linux GGUF runtime.

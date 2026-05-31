@@ -40,6 +40,25 @@ Then update `config/opencode.json` to match and run:
 
 The old 24 GB profile is preserved as reference at `config/profile-24gb.env` and `reference/PLAN-24GB-legacy.md`.
 
+An opt-in Ubuntu/NVIDIA profile is available for an i9 13th gen, 96 GB RAM, RTX 3090 workstation:
+
+- Setup plan: `PLAN-96GB-UBUNTU-NVIDIA.md`
+- Profile: `config/profile-96gb-ubuntu-nvidia.env`
+- OpenCode config: `config/opencode-96gb-ubuntu-nvidia.json`
+- Model: `unsloth/Qwen3.6-27B-GGUF@UD-Q5_K_XL` / `Qwen3.6-27B-UD-Q5_K_XL.gguf`
+- Runtime: LM Studio Linux llama.cpp/GGUF on NVIDIA
+- Default context: `16384`, with `12288` and `8192` fallbacks
+
+Use it explicitly with:
+
+```bash
+OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
+OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
+scripts/validate-profile-sync.sh
+```
+
+The default backup remains the 48 GB Mac profile.
+
 ## Lessons Baked In
 
 - Do not manually swap the loaded LM Studio model for OpenCode. The setup requires stable aliases: `local-fast`, `local-coder`, and the embedding model must all be visible from `/v1/models`.
