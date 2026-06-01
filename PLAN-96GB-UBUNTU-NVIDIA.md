@@ -3,41 +3,48 @@
 ## Summary
 
 This is the opt-in Linux/NVIDIA setup for an Ubuntu workstation with an Intel i9 13th gen CPU, 96 GB
-DDR5 RAM, and one RTX 3090. It keeps the OpenCode workflow from the 48 GB Mac profile: one visible
-`lmstudio/local-coder` model, Qwen prelude, local RAG, local dev tools, remote docs/examples MCPs,
-TypeScript and ESLint LSPs, subagents, slash commands, and guarded permissions.
+DDR5 RAM, and one RTX 3090. It keeps the OpenCode workflow from the 48 GB Mac profile: Qwen prelude,
+local RAG, local dev tools, remote docs/examples MCPs, TypeScript and ESLint LSPs, subagents, slash
+commands, and guarded permissions.
 
-The model runtime changes from Mac MLX/safetensors to LM Studio's Linux llama.cpp/GGUF runtime:
+The main model runtime changes from Mac MLX/safetensors to Lucebox DFlash:
 
-`unsloth/Qwen3.6-27B-GGUF@UD-Q5_K_XL` loaded as `local-coder`.
+`lucebox/luce-dflash` backed by `Qwen3.6-27B-Q4_K_M.gguf` and the matched Lucebox DFlash draft.
+
+LM Studio stays running for embeddings only in normal mode. The old `lmstudio/local-coder` chat
+provider remains in OpenCode as rollback, but the helper scripts do not auto-load that Qwen model
+unless `LMSTUDIO_LOAD_CHAT_ROLLBACK=1` is set.
 
 Model reference checked on 2026-05-31:
 
-- Hugging Face model: https://huggingface.co/unsloth/Qwen3.6-27B-GGUF
-- Target file: `Qwen3.6-27B-UD-Q5_K_XL.gguf`
-- File size: about `20 GB`
-- SHA256: `ac310abf2895aa397121bad6c0be89466af41f0f1606a21c1131b110eeb19d0e`
+- Hugging Face target model: https://huggingface.co/unsloth/Qwen3.6-27B-GGUF
+- Target file: `Qwen3.6-27B-Q4_K_M.gguf`
+- Hugging Face draft model: https://huggingface.co/Lucebox/Qwen3.6-27B-DFlash-GGUF
+- Draft file: `dflash-draft-3.6-q4_k_m.gguf`
 - License: Apache 2.0
 
-The RTX 3090 has 24 GB VRAM, so this profile defaults to a stable `16384` token context with
-fallbacks at `12288` and `8192`. If `lms load --estimate-only` and `nvidia-smi` show enough
-headroom, try `24576` or `32768` later, then update both `config/profile-96gb-ubuntu-nvidia.env` and
-`config/opencode-96gb-ubuntu-nvidia.json`.
+The RTX 3090 has 24 GB VRAM, so this profile lets Lucebox own the card and starts with a `32768`
+token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`.
 
 ## Components
 
 - Profile variables: `config/profile-96gb-ubuntu-nvidia.env`
 - OpenCode config: `config/opencode-96gb-ubuntu-nvidia.json`
+- LM Studio model metadata: `config/lmstudio-models/unsloth/qwen3.6-27b`
 - Linux install helper: `scripts/install-opencode-config-linux.sh`
-- Linux model helper: `scripts/ensure-lmstudio-models-linux.sh`
+- Lucebox model/build helper: `scripts/ensure-lucebox-linux.sh`
+- Lucebox service helper: `scripts/install-lucebox-service-linux.sh`
+- LM Studio embedding helper: `scripts/ensure-lmstudio-models-linux.sh`
 - Qwen instruction prelude: `~/.config/opencode/qwen36-instructions.md`
 - Local workflow instruction: `~/.config/opencode/local-coding-workflow.md`
-- Chat model: `Qwen3.6-27B-UD-Q5_K_XL.gguf`
-- Quantization/runtime: GGUF `UD-Q5_K_XL` through LM Studio llama.cpp on NVIDIA
-- Context: `16384`
+- Main chat model: `lucebox/luce-dflash`
+- Rollback chat model: `Qwen3.6-27B-UD-Q5_K_XL.gguf`, wrapped locally as `unsloth/qwen3.6-27b`
+- Main runtime: Lucebox DFlash C++/CUDA on NVIDIA
+- Context: `32768`
 - Output: `4096`
-- Embedding model: `text-embedding-nomic-embed-text-v1.5`
-- LM Studio API: `http://127.0.0.1:1234/v1`
+- Embedding model: `text-embedding-nomic-embed-text-v1.5`, loaded through LM Studio with `--gpu off`
+- Lucebox API: `http://127.0.0.1:18080/v1`
+- LM Studio embedding API: `http://127.0.0.1:1234/v1`
 - Local index DB: `~/.cache/opencode/local-code-index.sqlite3`
 
 ## Ubuntu Prerequisites
@@ -62,8 +69,8 @@ lms --help
 lms server start
 ```
 
-LM Studio's CLI ships with the app. The Hugging Face LM Studio docs also support downloading a full
-Hugging Face URL with an `@` quantization suffix, which is what this profile uses.
+LM Studio's CLI ships with the app. This profile uses the direct Hugging Face file URL plus a local
+model.yaml wrapper so Qwen's `enable_thinking` template variable defaults off for OpenCode.
 
 ## Install OpenCode Config
 
@@ -96,44 +103,42 @@ immediately.
 
 ## Download And Load Models
 
-Use the helper:
+Build Lucebox and download the target/draft pair:
 
 ```bash
 export OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env"
-scripts/ensure-lmstudio-models-linux.sh
+scripts/ensure-lucebox-linux.sh
+scripts/install-opencode-config-linux.sh
+scripts/install-lucebox-service-linux.sh
 ```
 
-Equivalent manual flow:
+Ensure LM Studio runs the embedding model only:
 
 ```bash
 lms server start
-lms get https://huggingface.co/unsloth/Qwen3.6-27B-GGUF@UD-Q5_K_XL --gguf
-lms get text-embedding-nomic-embed-text-v1.5 --gguf
-lms ls
+scripts/ensure-lmstudio-models-linux.sh
 ```
 
-Then load the downloaded Qwen model key as:
+Normal mode unloads `local-coder` if it is loaded, then loads:
 
 ```bash
-lms load <qwen_model_key> \
-  --identifier local-coder \
-  --context-length 16384 \
-  --gpu max \
-  --ttl 3600
-
 lms load text-embedding-nomic-embed-text-v1.5 \
   --identifier text-embedding-nomic-embed-text-v1.5 \
+  --gpu off \
   --ttl 3600
 ```
 
-Watch VRAM during first load and first request:
+For rollback testing only:
+
+```bash
+LMSTUDIO_LOAD_CHAT_ROLLBACK=1 scripts/ensure-lmstudio-models-linux.sh
+```
+
+Watch VRAM during first Lucebox load and first request:
 
 ```bash
 nvidia-smi
 ```
-
-If LM Studio cannot load at 16K with `--gpu max`, retry `12288`, then `8192`. If it loads but spills
-heavily to system RAM, keep it if the speed is acceptable or move down one context step.
 
 ## Validate
 
@@ -145,7 +150,7 @@ OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
   OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
   scripts/validate-profile-sync.sh
 zsh -n scripts/*.sh scripts/lib/profile.sh
-SMOKE_SKIP_HARDWARE=1 SMOKE_SKIP_LMSTUDIO=1 SMOKE_SKIP_LAUNCHCTL=1 \
+SMOKE_SKIP_HARDWARE=1 SMOKE_SKIP_LMSTUDIO=1 SMOKE_SKIP_LUCEBOX=1 SMOKE_SKIP_LAUNCHCTL=1 \
   OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
   OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
   scripts/smoke-test.sh
@@ -163,11 +168,10 @@ Expected:
 
 - OpenCode config parses with `jq`.
 - Profile and config are in sync.
-- LM Studio loads `local-coder` at the configured context. If the helper falls back to `12288` or
-  `8192`, update the profile and OpenCode config to that context, then rerun validation.
+- Lucebox responds on `127.0.0.1:18080`.
+- LM Studio has only the embedding model loaded in normal mode.
 - LM Studio listens only on `127.0.0.1:1234`.
-- Qwen prelude generation returns `OK local-coder` without `reasoning_content`.
-- Compaction-style prompt rendering does not crash or produce a template error.
+- Lucebox generation returns `OK lucebox`.
 - Embeddings endpoint returns a `768`-dimension vector.
 - Local MCPs list expected tools and `local_dev_tools` blocks destructive commands.
 - Remote MCP endpoints respond.

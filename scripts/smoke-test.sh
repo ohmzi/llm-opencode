@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="${0:A:h:h}"
 source "$ROOT/scripts/lib/profile.sh"
-require_profile_vars LMS PROFILE_NAME EXPECTED_ARCH MIN_MEM_BYTES MAX_MEM_BYTES LMSTUDIO_HOST LMSTUDIO_PORT LMSTUDIO_BASE_URL LMSTUDIO_MODELS_URL LMSTUDIO_EMBEDDING_URL CHAT_ID CHAT_CONTEXT EMBED_ID EMBED_DIMENSIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_ENABLE_EXA OPENCODE_EXPERIMENTAL_LSP_TOOL
+require_profile_vars LMS PROFILE_NAME EXPECTED_ARCH MIN_MEM_BYTES MAX_MEM_BYTES LMSTUDIO_HOST LMSTUDIO_PORT LMSTUDIO_BASE_URL LMSTUDIO_MODELS_URL LMSTUDIO_EMBEDDING_URL CHAT_ID CHAT_CONTEXT EMBED_ID EMBED_DIMENSIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_ENABLE_EXA OPENCODE_EXPERIMENTAL_LSP_TOOL OPENCODE_PROVIDER OPENCODE_MODEL
 if [[ -n "${FAST_ID:-}" ]]; then
   require_profile_vars FAST_CONTEXT
 fi
@@ -62,7 +62,11 @@ ok "$PROFILE_NAME hardware profile"
 
 jq . "$CONFIG" >/dev/null
 ok "OpenCode backup config is valid JSON"
-/usr/bin/python3 -m py_compile "$ROOT/mcp/local_code_index.py" "$ROOT/mcp/local_dev_tools.py" "$ROOT/mcp/remote_mcp_proxy.py"
+python_files=("$ROOT/mcp/local_code_index.py" "$ROOT/mcp/local_dev_tools.py" "$ROOT/mcp/remote_mcp_proxy.py")
+if [[ -f "$ROOT/scripts/lucebox-autowake-proxy.py" ]]; then
+  python_files+=("$ROOT/scripts/lucebox-autowake-proxy.py")
+fi
+/usr/bin/python3 -m py_compile "${python_files[@]}"
 ok "MCP Python files compile"
 if [[ "${PROFILE_OS:-$(uname -s | tr '[:upper:]' '[:lower:]')}" == "linux" ]]; then
   ok "LaunchAgent plist skipped on Linux profile"
@@ -80,14 +84,29 @@ if [[ "${SMOKE_SKIP_LMSTUDIO:-0}" != "1" ]]; then
     ensure_models="$ROOT/$ensure_models"
   fi
   "$ensure_models"
-  ok "LM Studio models ensured"
+  ok "LM Studio embedding service ensured"
 
   models="$(curl -s --max-time 10 "$LMSTUDIO_MODELS_URL")"
-  printf '%s\n' "$models" | jq -e --arg id "$CHAT_ID" --argjson context "$CHAT_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
-  ok "chat model loaded at configured context"
-  if [[ -n "${FAST_ID:-}" ]]; then
-    printf '%s\n' "$models" | jq -e --arg id "$FAST_ID" --argjson context "$FAST_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
-    ok "fast default model loaded at configured context"
+  if [[ "$OPENCODE_PROVIDER" == "${LUCEBOX_PROVIDER:-lucebox}" ]]; then
+    rollback_mode=0
+    case "${LMSTUDIO_LOAD_CHAT_ROLLBACK:-0}" in
+      1|true|TRUE|yes|YES|on|ON) rollback_mode=1 ;;
+    esac
+    if [[ "$rollback_mode" == "0" ]]; then
+      loaded_non_embed="$(printf '%s\n' "$models" | jq -r --arg embed "$EMBED_ID" '.data[]? | select(.state == "loaded" and .id != $embed) | .id' | head -n 1)"
+      [[ -z "$loaded_non_embed" ]] || fail "LM Studio has non-embedding model loaded in Lucebox mode: $loaded_non_embed"
+      ok "LM Studio chat model unloaded in Lucebox mode"
+    else
+      printf '%s\n' "$models" | jq -e --arg id "$CHAT_ID" --argjson context "$CHAT_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
+      ok "LM Studio rollback chat model loaded at configured context"
+    fi
+  else
+    printf '%s\n' "$models" | jq -e --arg id "$CHAT_ID" --argjson context "$CHAT_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
+    ok "chat model loaded at configured context"
+    if [[ -n "${FAST_ID:-}" ]]; then
+      printf '%s\n' "$models" | jq -e --arg id "$FAST_ID" --argjson context "$FAST_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
+      ok "fast default model loaded at configured context"
+    fi
   fi
   printf '%s\n' "$models" | jq -e --arg id "$EMBED_ID" '.data[] | select(.id == $id and .state == "loaded")' >/dev/null
   ok "embedding model loaded"
@@ -106,43 +125,47 @@ if [[ "${SMOKE_SKIP_LMSTUDIO:-0}" != "1" ]]; then
   grep -q '<|think_off|>' "$ROOT/config/qwen36-instructions.md" || fail "Qwen instructions missing <|think_off|>"
   ok "Qwen no-think prelude configured"
 
-  if [[ -n "${FAST_ID:-}" ]]; then
-    fast_payload="$(jq -n --arg model "$FAST_ID" '{
-      model: $model,
-      messages: [
-        {role: "system", content: "Answer directly and do not call tools."},
-        {role: "user", content: "No tools. Reply with exactly: OK"}
-      ],
-      max_tokens: 32,
-      temperature: 0
-    }')"
-    fast_reply="$(curl -s --max-time 60 "$LMSTUDIO_BASE_URL/chat/completions" \
-      -H 'Content-Type: application/json' \
-      -d "$fast_payload" | jq -r '.choices[0].message.content // .error.message // ""')"
-    [[ "$fast_reply" == *OK* ]] || fail "fast default smoke response was: $fast_reply"
-    ok "fast default chat completion"
-  fi
+  if [[ "$OPENCODE_PROVIDER" != "${LUCEBOX_PROVIDER:-lucebox}" ]]; then
+    if [[ -n "${FAST_ID:-}" ]]; then
+      fast_payload="$(jq -n --arg model "$FAST_ID" '{
+        model: $model,
+        messages: [
+          {role: "system", content: "Answer directly and do not call tools."},
+          {role: "user", content: "No tools. Reply with exactly: OK"}
+        ],
+        max_tokens: 32,
+        temperature: 0
+      }')"
+      fast_reply="$(curl -s --max-time 60 "$LMSTUDIO_BASE_URL/chat/completions" \
+        -H 'Content-Type: application/json' \
+        -d "$fast_payload" | jq -r '.choices[0].message.content // .error.message // ""')"
+      [[ "$fast_reply" == *OK* ]] || fail "fast default smoke response was: $fast_reply"
+      ok "fast default chat completion"
+    fi
 
-  if [[ -z "${FAST_ID:-}" || "${SMOKE_QWEN_GENERATION:-0}" == "1" ]]; then
-    chat_payload="$(jq -n --arg model "$CHAT_ID" '{
-      model: $model,
-      messages: [
-        {role: "system", content: "<|think_off|>\nYou are Qwen, created by Alibaba Cloud. Answer directly."},
-        {role: "user", content: "Reply with exactly: OK local-coder"}
-      ],
-      max_tokens: 64,
-      temperature: 0
-    }')"
-    reply_json="$(curl -s --max-time 90 "$LMSTUDIO_BASE_URL/chat/completions" \
-      -H 'Content-Type: application/json' \
-      -d "$chat_payload")"
-    reply="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.content // .error.message // ""')"
-    [[ "$reply" == *"OK local-coder"* || "$reply" == *OK* ]] || fail "Qwen generation smoke response was: $reply"
-    reasoning="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.reasoning_content // ""')"
-    [[ -z "$reasoning" || "$reasoning" == "null" ]] || fail "reasoning_content was not empty"
-    ok "Qwen generation smoke"
+    if [[ -z "${FAST_ID:-}" || "${SMOKE_QWEN_GENERATION:-0}" == "1" ]]; then
+      chat_payload="$(jq -n --arg model "$CHAT_ID" '{
+        model: $model,
+        messages: [
+          {role: "system", content: "<|think_off|>\nYou are Qwen, created by Alibaba Cloud. Answer directly."},
+          {role: "user", content: "Reply with exactly: OK local-coder"}
+        ],
+        max_tokens: 64,
+        temperature: 0
+      }')"
+      reply_json="$(curl -s --max-time 90 "$LMSTUDIO_BASE_URL/chat/completions" \
+        -H 'Content-Type: application/json' \
+        -d "$chat_payload")"
+      reply="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.content // .error.message // ""')"
+      [[ "$reply" == *"OK local-coder"* || "$reply" == *OK* ]] || fail "Qwen generation smoke response was: $reply"
+      reasoning="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.reasoning_content // ""')"
+      [[ -z "$reasoning" || "$reasoning" == "null" ]] || fail "reasoning_content was not empty"
+      ok "Qwen generation smoke"
+    else
+      ok "Qwen generation smoke skipped by default"
+    fi
   else
-    ok "Qwen generation smoke skipped by default"
+    ok "LM Studio chat completion skipped in Lucebox mode"
   fi
 
   embed_payload="$(jq -n --arg model "$EMBED_ID" '{model: $model, input: ["smoke"]}')"
@@ -156,11 +179,37 @@ else
   ok "LM Studio live checks skipped"
 fi
 
+if [[ "$OPENCODE_PROVIDER" == "${LUCEBOX_PROVIDER:-lucebox}" ]]; then
+  if [[ "${SMOKE_SKIP_LUCEBOX:-0}" != "1" ]]; then
+    require_profile_vars LUCEBOX_HEALTH_URL LUCEBOX_PROPS_URL LUCEBOX_BASE_URL LUCEBOX_MODEL_ID
+    curl -fsS --max-time 20 "$LUCEBOX_HEALTH_URL" >/dev/null
+    ok "Lucebox health"
+    curl -fsS --max-time 20 "$LUCEBOX_PROPS_URL" | jq -e '.server.name == "luce-dflash"' >/dev/null
+    ok "Lucebox props"
+    lucebox_payload="$(jq -n --arg model "$LUCEBOX_MODEL_ID" '{
+      model: $model,
+      messages: [
+        {role: "system", content: "You are Qwen, created by Alibaba Cloud. You are a helpful assistant. <|think_off|>"},
+        {role: "user", content: "No tools. Reply with exactly: OK lucebox"}
+      ],
+      max_tokens: 64,
+      temperature: 0
+    }')"
+    lucebox_reply="$(curl -s --max-time 180 "$LUCEBOX_BASE_URL/chat/completions" \
+      -H 'Content-Type: application/json' \
+      -d "$lucebox_payload" | jq -r '.choices[0].message.content // .error.message // ""')"
+    [[ "$lucebox_reply" == *"OK lucebox"* || "$lucebox_reply" == *OK* ]] || fail "Lucebox chat smoke response was: $lucebox_reply"
+    ok "Lucebox chat completion"
+  else
+    ok "Lucebox live checks skipped"
+  fi
+fi
+
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-  | OPENCODE_INDEX_ROOTS="$OPENCODE_INDEX_ROOTS" OPENCODE_INDEX_AUTODISCOVER="$OPENCODE_INDEX_AUTODISCOVER" OPENCODE_DESKTOP_STATE="$OPENCODE_DESKTOP_STATE" OPENCODE_INDEX_BACKGROUND=0 OPENCODE_INDEX_DB="$OPENCODE_INDEX_DB" LMSTUDIO_EMBEDDING_URL="$LMSTUDIO_EMBEDDING_URL" LMSTUDIO_EMBEDDING_MODEL="$EMBED_ID" \
+  | OPENCODE_INDEX_ROOTS="$OPENCODE_INDEX_ROOTS" OPENCODE_INDEX_AUTODISCOVER="$OPENCODE_INDEX_AUTODISCOVER" OPENCODE_DESKTOP_STATE="$OPENCODE_DESKTOP_STATE" OPENCODE_INDEX_BACKGROUND=0 OPENCODE_INDEX_DB="$OPENCODE_INDEX_DB" LMSTUDIO_EMBEDDING_URL="$LMSTUDIO_EMBEDDING_URL" LMSTUDIO_EMBEDDING_MODEL="$EMBED_ID" LMSTUDIO_ENSURE_MODELS_SCRIPT="${LMSTUDIO_ENSURE_MODELS_SCRIPT:-}" \
     python3 "$ROOT/mcp/local_code_index.py" | grep 'code_index_search' >/dev/null
 ok "local_code_index MCP"
 

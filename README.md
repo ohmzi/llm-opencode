@@ -45,9 +45,11 @@ An opt-in Ubuntu/NVIDIA profile is available for an i9 13th gen, 96 GB RAM, RTX 
 - Setup plan: `PLAN-96GB-UBUNTU-NVIDIA.md`
 - Profile: `config/profile-96gb-ubuntu-nvidia.env`
 - OpenCode config: `config/opencode-96gb-ubuntu-nvidia.json`
-- Model: `unsloth/Qwen3.6-27B-GGUF@UD-Q5_K_XL` / `Qwen3.6-27B-UD-Q5_K_XL.gguf`
-- Runtime: LM Studio Linux llama.cpp/GGUF on NVIDIA
-- Default context: `16384`, with `12288` and `8192` fallbacks
+- Main model runtime: Lucebox DFlash on `127.0.0.1:18080`
+- Main model: `lucebox/luce-dflash` backed by `Qwen3.6-27B-Q4_K_M.gguf` + `dflash-draft-3.6-q4_k_m.gguf`
+- Rollback model: `lmstudio/local-coder`, kept configured but not auto-loaded in normal mode
+- Embeddings: LM Studio `text-embedding-nomic-embed-text-v1.5` on `127.0.0.1:1234`, loaded with `--gpu off`
+- Default Lucebox context: `32768`
 
 Use it explicitly with:
 
@@ -101,7 +103,7 @@ Full validation on the 48 GB Mac:
 /Users/oiqbal/AndroidStudioProjects/llm-opencode/scripts/smoke-test.sh
 ```
 
-The full smoke test loads the 32K `local-fast` and `local-coder` aliases, checks local-only binding, verifies fast no-tool generation, verifies Qwen is loaded and configured with `<|think_off|>`, validates embeddings, exercises local MCPs, checks remote MCP reachability, and validates the OpenCode agent/command/LSP shape. Direct Qwen generation is intentionally opt-in with `SMOKE_QWEN_GENERATION=1` because the restored router avoids using Qwen for trivial no-tool turns.
+The full smoke test follows the active profile. On the Mac profile it loads the 32K `local-fast` and `local-coder` aliases, verifies fast no-tool generation, and keeps direct Qwen generation opt-in with `SMOKE_QWEN_GENERATION=1`. On the Ubuntu Lucebox profile it checks Lucebox chat, keeps LM Studio embedding-only, exercises local MCPs, checks remote MCP reachability, and validates the OpenCode agent/command/LSP shape.
 
 ## Update This Backup From A 48 GB Live Setup
 

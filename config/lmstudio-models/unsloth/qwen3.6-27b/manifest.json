@@ -1,0 +1,22 @@
+{
+  "type": "model",
+  "owner": "unsloth",
+  "name": "qwen3.6-27b",
+  "dependencies": [
+    {
+      "type": "model",
+      "purpose": "baseModel",
+      "modelKeys": [
+        "unsloth/qwen3.6-27b-gguf"
+      ],
+      "sources": [
+        {
+          "type": "huggingface",
+          "user": "unsloth",
+          "repo": "Qwen3.6-27B-GGUF"
+        }
+      ]
+    }
+  ],
+  "revision": 1
+}
