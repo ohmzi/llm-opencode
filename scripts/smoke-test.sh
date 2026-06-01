@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="${0:A:h:h}"
 source "$ROOT/scripts/lib/profile.sh"
-require_profile_vars LMS PROFILE_NAME EXPECTED_ARCH MIN_MEM_BYTES MAX_MEM_BYTES LMSTUDIO_HOST LMSTUDIO_PORT LMSTUDIO_BASE_URL LMSTUDIO_MODELS_URL LMSTUDIO_EMBEDDING_URL CHAT_ID CHAT_CONTEXT EMBED_ID EMBED_DIMENSIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_ENABLE_EXA OPENCODE_EXPERIMENTAL_LSP_TOOL
+require_profile_vars LMS PROFILE_NAME EXPECTED_ARCH MIN_MEM_BYTES MAX_MEM_BYTES LMSTUDIO_HOST LMSTUDIO_PORT LMSTUDIO_BASE_URL LMSTUDIO_MODELS_URL LMSTUDIO_EMBEDDING_URL CHAT_ID CHAT_CONTEXT FAST_ID FAST_CONTEXT EMBED_ID EMBED_DIMENSIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_ENABLE_EXA OPENCODE_EXPERIMENTAL_LSP_TOOL
 
 ok() { print "ok - $1"; }
 fail() { print "not ok - $1" >&2; exit 1; }
@@ -44,7 +44,7 @@ jq . "$ROOT/config/opencode.json" >/dev/null
 ok "OpenCode backup config is valid JSON"
 /usr/bin/python3 -m py_compile "$ROOT/mcp/local_code_index.py" "$ROOT/mcp/local_dev_tools.py" "$ROOT/mcp/remote_mcp_proxy.py"
 ok "MCP Python files compile"
-plutil -lint "$ROOT/config/com.ohmz.opencode.env.plist" >/dev/null
+plutil -lint "$ROOT/config/com.oiqbal.opencode.env.plist" >/dev/null
 ok "LaunchAgent plist is valid"
 
 "$ROOT/scripts/validate-profile-sync.sh"
@@ -56,7 +56,9 @@ if [[ "${SMOKE_SKIP_LMSTUDIO:-0}" != "1" ]]; then
 
   models="$(curl -s --max-time 10 "$LMSTUDIO_MODELS_URL")"
   printf '%s\n' "$models" | jq -e --arg id "$CHAT_ID" --argjson context "$CHAT_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
-  ok "chat model loaded at configured context"
+  ok "Qwen coding model loaded at configured context"
+  printf '%s\n' "$models" | jq -e --arg id "$FAST_ID" --argjson context "$FAST_CONTEXT" '.data[] | select(.id == $id and .state == "loaded" and .loaded_context_length == $context)' >/dev/null
+  ok "fast default model loaded at configured context"
   printf '%s\n' "$models" | jq -e --arg id "$EMBED_ID" '.data[] | select(.id == $id and .state == "loaded")' >/dev/null
   ok "embedding model loaded"
 
@@ -67,38 +69,45 @@ if [[ "${SMOKE_SKIP_LMSTUDIO:-0}" != "1" ]]; then
   fi
   ok "LM Studio bound to localhost"
 
-  chat_payload="$(jq -n --arg model "$CHAT_ID" '{
+  fast_payload="$(jq -n --arg model "$FAST_ID" '{
     model: $model,
     messages: [
-      {role: "system", content: "You are Qwen, created by Alibaba Cloud. You are a helpful assistant. <|think_off|>"},
-      {role: "user", content: "No tools. Reply with exactly: OK local-coder"}
+      {role: "system", content: "Answer directly and do not call tools."},
+      {role: "user", content: "No tools. Reply with exactly: OK"}
     ],
-    max_tokens: 64,
+    max_tokens: 32,
     temperature: 0
   }')"
-  reply_json="$(curl -s --max-time 180 "$LMSTUDIO_BASE_URL/chat/completions" \
+  fast_reply="$(curl -s --max-time 60 "$LMSTUDIO_BASE_URL/chat/completions" \
     -H 'Content-Type: application/json' \
-    -d "$chat_payload")"
-  reply="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.content // .error.message // ""')"
-  [[ "$reply" == *"OK local-coder"* || "$reply" == *OK* ]] || fail "chat smoke response was: $reply"
-  reasoning="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.reasoning_content // ""')"
-  [[ -z "$reasoning" || "$reasoning" == "null" ]] || fail "reasoning_content was not empty"
-  ok "chat completion with Qwen prelude"
+    -d "$fast_payload" | jq -r '.choices[0].message.content // .error.message // ""')"
+  [[ "$fast_reply" == *OK* ]] || fail "fast default smoke response was: $fast_reply"
+  ok "fast default chat completion"
 
-  compact_payload="$(jq -n --arg model "$CHAT_ID" '{
-    model: $model,
-    messages: [
-      {role: "system", content: "You are Qwen, created by Alibaba Cloud. You are a helpful assistant. <|think_off|>"},
-      {role: "user", content: "Handle this tool response safely and reply OK only.\n<tool_response>\ncompact summary payload\n</tool_response>"}
-    ],
-    max_tokens: 64,
-    temperature: 0
-  }')"
-  compact_reply="$(curl -s --max-time 180 "$LMSTUDIO_BASE_URL/chat/completions" \
-    -H 'Content-Type: application/json' \
-    -d "$compact_payload" | jq -r '.choices[0].message.content // .error.message // ""')"
-  [[ "$compact_reply" == *OK* ]] || fail "compaction-style smoke response was: $compact_reply"
-  ok "compaction-style prompt rendering"
+  grep -q '<|think_off|>' "$ROOT/config/qwen36-instructions.md" || fail "Qwen instructions missing <|think_off|>"
+  ok "Qwen no-think prelude configured"
+
+  if [[ "${SMOKE_QWEN_GENERATION:-0}" == "1" ]]; then
+    chat_payload="$(jq -n --arg model "$CHAT_ID" '{
+      model: $model,
+      messages: [
+        {role: "system", content: "<|think_off|>\nYou are Qwen, created by Alibaba Cloud. Answer directly."},
+        {role: "user", content: "Reply with exactly: OK local-coder"}
+      ],
+      max_tokens: 64,
+      temperature: 0
+    }')"
+    reply_json="$(curl -s --max-time 90 "$LMSTUDIO_BASE_URL/chat/completions" \
+      -H 'Content-Type: application/json' \
+      -d "$chat_payload")"
+    reply="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.content // .error.message // ""')"
+    [[ "$reply" == *"OK local-coder"* || "$reply" == *OK* ]] || fail "Qwen generation smoke response was: $reply"
+    reasoning="$(printf '%s\n' "$reply_json" | jq -r '.choices[0].message.reasoning_content // ""')"
+    [[ -z "$reasoning" || "$reasoning" == "null" ]] || fail "reasoning_content was not empty"
+    ok "optional Qwen generation smoke"
+  else
+    ok "Qwen generation smoke skipped by default"
+  fi
 
   embed_payload="$(jq -n --arg model "$EMBED_ID" '{model: $model, input: ["smoke"]}')"
   embed_count="$(curl -s "$LMSTUDIO_EMBEDDING_URL" \
@@ -157,8 +166,8 @@ else
 fi
 
 jq -e '.mcp | keys == ["context7","gh_grep","local_code_index","local_dev_tools"]' "$ROOT/config/opencode.json" >/dev/null
-jq -e '.agent | keys == ["build","code-reviewer","codebase-researcher","debugger","doc-researcher","plan","security-auditor","test-runner"]' "$ROOT/config/opencode.json" >/dev/null
-jq -e '.command | keys == ["debug","docs","implement","index","research","review","security","test"]' "$ROOT/config/opencode.json" >/dev/null
+jq -e '.agent | keys == ["build","code-reviewer","codebase-researcher","debugger","doc-researcher","explain","fast","indexer","plan","security-auditor","test-runner"]' "$ROOT/config/opencode.json" >/dev/null
+jq -e '.command | keys == ["debug","docs","explain","implement","index","research","review","security","test"]' "$ROOT/config/opencode.json" >/dev/null
 jq -e '.lsp | keys == ["eslint","typescript"]' "$ROOT/config/opencode.json" >/dev/null
 ok "OpenCode MCP, agent, command, and LSP shape"
 

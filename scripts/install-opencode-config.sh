@@ -25,7 +25,7 @@ cp "$ROOT/mcp/local_dev_tools.py" "$DEST/mcp/local_dev_tools.py"
 cp "$ROOT/mcp/remote_mcp_proxy.py" "$DEST/mcp/remote_mcp_proxy.py"
 cp "$ROOT/scripts/lib/profile.sh" "$DEST/lib/profile.sh"
 cp "$ROOT/config/opencode-launch-env.sh" "$OPENCODE_LAUNCH_ENV"
-OPENCODE_LAUNCH_AGENT_LABEL="${OPENCODE_LAUNCH_AGENT_LABEL:-com.ohmz.opencode.env}" OPENCODE_LAUNCH_ENV="$OPENCODE_LAUNCH_ENV" /usr/bin/python3 - <<'PY' > "$OPENCODE_LAUNCH_AGENT_PLIST"
+OPENCODE_LAUNCH_AGENT_LABEL="${OPENCODE_LAUNCH_AGENT_LABEL:-com.oiqbal.opencode.env}" OPENCODE_LAUNCH_ENV="$OPENCODE_LAUNCH_ENV" /usr/bin/python3 - <<'PY' > "$OPENCODE_LAUNCH_AGENT_PLIST"
 import os
 import plistlib
 import sys
@@ -52,7 +52,7 @@ launchctl setenv OPENCODE_ENABLE_EXA "${OPENCODE_ENABLE_EXA:-1}" || true
 launchctl setenv OPENCODE_EXPERIMENTAL_LSP_TOOL "${OPENCODE_EXPERIMENTAL_LSP_TOOL:-true}" || true
 launchctl bootout "gui/$(id -u)" "$OPENCODE_LAUNCH_AGENT_PLIST" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$OPENCODE_LAUNCH_AGENT_PLIST" >/dev/null 2>&1 || true
-launchctl kickstart -k "gui/$(id -u)/${OPENCODE_LAUNCH_AGENT_LABEL:-com.ohmz.opencode.env}" >/dev/null 2>&1 || true
+launchctl kickstart -k "gui/$(id -u)/${OPENCODE_LAUNCH_AGENT_LABEL:-com.oiqbal.opencode.env}" >/dev/null 2>&1 || true
 
 echo "Installed OpenCode 48 GB config into $DEST"
 echo "Previous config backup, if any: $DEST/opencode.json.bak-$STAMP"

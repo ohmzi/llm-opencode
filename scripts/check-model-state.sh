@@ -11,7 +11,7 @@ else
   echo "Could not find scripts/lib/profile.sh" >&2
   exit 1
 fi
-require_profile_vars LMS CHAT_ID CHAT_GET_REF CHAT_MODEL_KEY CHAT_MODEL_PATH EMBED_ID EMBED_MODEL_PATH
+require_profile_vars LMS CHAT_ID CHAT_GET_REF CHAT_MODEL_KEY CHAT_MODEL_PATH FAST_ID FAST_GET_REF FAST_MODEL_KEY FAST_MODEL_PATH EMBED_ID EMBED_MODEL_PATH
 
 if [[ ! -x "$LMS" ]]; then
   echo "LM Studio lms CLI not found at $LMS"
@@ -28,6 +28,10 @@ echo "Loaded LM Studio models:"
 missing=0
 "$LMS" ls --json | jq -e --arg id "$CHAT_ID" --arg key "$CHAT_MODEL_KEY" --arg path "$CHAT_MODEL_PATH" --arg ref "$CHAT_GET_REF" '.[] | select(.modelKey == $id or .modelKey == $key or .path == $path or .indexedModelIdentifier == $ref)' >/dev/null || {
   echo "Missing expected chat model: $CHAT_GET_REF ($CHAT_MODEL_PATH), loaded as $CHAT_ID"
+  missing=1
+}
+"$LMS" ls --json | jq -e --arg id "$FAST_ID" --arg key "$FAST_MODEL_KEY" --arg path "$FAST_MODEL_PATH" --arg ref "$FAST_GET_REF" '.[] | select(.modelKey == $id or .modelKey == $key or .path == $path or .indexedModelIdentifier == $ref)' >/dev/null || {
+  echo "Missing expected fast model: $FAST_GET_REF ($FAST_MODEL_PATH), loaded as $FAST_ID"
   missing=1
 }
 "$LMS" ls --json | jq -e --arg id "$EMBED_ID" --arg path "$EMBED_MODEL_PATH" '.[] | select(.modelKey == $id or .path == $path)' >/dev/null || {

@@ -11,7 +11,7 @@ else
   echo "Could not find scripts/lib/profile.sh" >&2
   exit 1
 fi
-require_profile_vars OPENCODE_PROVIDER LMSTUDIO_BASE_URL CHAT_ID CHAT_CONTEXT CHAT_OUTPUT CHAT_MODEL_DISPLAY OPENCODE_MODEL OPENCODE_QWEN_INSTRUCTIONS OPENCODE_WORKFLOW_INSTRUCTIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_INDEX_BACKGROUND OPENCODE_INDEX_BACKGROUND_SECONDS OPENCODE_INDEX_AUTO_SYNC_SECONDS OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS LMSTUDIO_EMBEDDING_URL EMBED_ID OPENCODE_COMPACTION_RESERVED LOCAL_DEV_COMMAND_TIMEOUT LOCAL_DEV_MAX_TIMEOUT LOCAL_DEV_MAX_OUTPUT_CHARS LOCAL_DEV_MAX_TREE_ENTRIES
+require_profile_vars OPENCODE_PROVIDER LMSTUDIO_BASE_URL CHAT_ID CHAT_CONTEXT CHAT_OUTPUT CHAT_MODEL_DISPLAY FAST_ID FAST_CONTEXT FAST_OUTPUT FAST_MODEL_DISPLAY OPENCODE_DEFAULT_AGENT OPENCODE_MODEL OPENCODE_SMALL_MODEL OPENCODE_CODER_MODEL OPENCODE_QWEN_INSTRUCTIONS OPENCODE_WORKFLOW_INSTRUCTIONS OPENCODE_DESKTOP_STATE OPENCODE_INDEX_ROOTS OPENCODE_INDEX_AUTODISCOVER OPENCODE_INDEX_BACKGROUND OPENCODE_INDEX_BACKGROUND_SECONDS OPENCODE_INDEX_AUTO_SYNC_SECONDS OPENCODE_INDEX_DB OPENCODE_DEV_ROOTS LMSTUDIO_EMBEDDING_URL EMBED_ID OPENCODE_COMPACTION_RESERVED LOCAL_DEV_COMMAND_TIMEOUT LOCAL_DEV_MAX_TIMEOUT LOCAL_DEV_MAX_OUTPUT_CHARS LOCAL_DEV_MAX_TREE_ENTRIES
 
 if [[ -f "$ROOT/config/opencode.json" ]]; then
   CONFIG="$ROOT/config/opencode.json"
@@ -22,28 +22,57 @@ fi
 jq -e \
   --arg provider "$OPENCODE_PROVIDER" \
   --arg base_url "$LMSTUDIO_BASE_URL" \
+  --arg default_agent "$OPENCODE_DEFAULT_AGENT" \
   --arg model "$OPENCODE_MODEL" \
+  --arg small_model "$OPENCODE_SMALL_MODEL" \
+  --arg coder_model "$OPENCODE_CODER_MODEL" \
   --arg chat_id "$CHAT_ID" \
   --arg display "$CHAT_MODEL_DISPLAY" \
+  --arg fast_id "$FAST_ID" \
+  --arg fast_display "$FAST_MODEL_DISPLAY" \
   --arg qwen_instructions "$OPENCODE_QWEN_INSTRUCTIONS" \
   --arg workflow_instructions "$OPENCODE_WORKFLOW_INSTRUCTIONS" \
   --argjson context "$CHAT_CONTEXT" \
   --argjson output "$CHAT_OUTPUT" \
+  --argjson fast_context "$FAST_CONTEXT" \
+  --argjson fast_output "$FAST_OUTPUT" \
   --argjson reserved "$OPENCODE_COMPACTION_RESERVED" \
   '
   (.enabled_providers == [$provider]) and
-  (.default_agent == "build") and
+  (.default_agent == $default_agent) and
   (.instructions == [$qwen_instructions, $workflow_instructions]) and
   (.provider[$provider].options.baseURL == $base_url) and
-  (.provider[$provider].whitelist == [$chat_id]) and
+  (.provider[$provider].whitelist == [$chat_id, $fast_id]) and
   (.provider[$provider].models[$chat_id].name == $display) and
   (.provider[$provider].models[$chat_id].tool_call == true) and
+  (.provider[$provider].models[$chat_id].reasoning == false) and
+  (.provider[$provider].models[$chat_id].attachment == true) and
   (.provider[$provider].models[$chat_id].limit.context == $context) and
   (.provider[$provider].models[$chat_id].limit.output == $output) and
+  (.provider[$provider].models[$fast_id].name == $fast_display) and
+  (.provider[$provider].models[$fast_id].tool_call == true) and
+  (.provider[$provider].models[$fast_id].limit.context == $fast_context) and
+  (.provider[$provider].models[$fast_id].limit.output == $fast_output) and
   (.model == $model) and
-  (.small_model == $model) and
+  (.small_model == $small_model) and
   (.compaction.reserved == $reserved) and
-  (.agent | to_entries | all(.value.model == $model))
+  (.agent.fast.model == $small_model) and
+  (.agent.explain.model == $small_model) and
+  (.agent.build.model == $coder_model) and
+  (.agent.indexer.model == $coder_model) and
+  (.agent.plan.model == $coder_model) and
+  (.agent.build.steps == 18) and
+  (.agent.plan.steps == 10) and
+  (.agent."codebase-researcher".steps == 10) and
+  (.agent.debugger.steps == 12) and
+  (.agent.build.permission."local_code_index_*" == "deny") and
+  (.agent.build.permission."local_dev_tools_*" == "deny") and
+  (.agent.build.permission."context7_*" == "deny") and
+  (.agent.build.permission."gh_grep_*" == "deny") and
+  (.command.explain.agent == "explain") and
+  (.command.research.agent == "codebase-researcher") and
+  (.command.implement.agent == "build") and
+  (.command.index.agent == "indexer")
   ' "$CONFIG" >/dev/null
 
 jq -e \
@@ -86,8 +115,8 @@ jq -e \
 jq -e \
   '
   (.mcp | keys == ["context7","gh_grep","local_code_index","local_dev_tools"]) and
-  (.agent | keys == ["build","code-reviewer","codebase-researcher","debugger","doc-researcher","plan","security-auditor","test-runner"]) and
-  (.command | keys == ["debug","docs","implement","index","research","review","security","test"]) and
+  (.agent | keys == ["build","code-reviewer","codebase-researcher","debugger","doc-researcher","explain","fast","indexer","plan","security-auditor","test-runner"]) and
+  (.command | keys == ["debug","docs","explain","implement","index","research","review","security","test"]) and
   (.lsp | keys == ["eslint","typescript"]) and
   (.lsp.typescript.command == ["npx","--yes","typescript-language-server","--stdio"]) and
   (.lsp.eslint.command == ["npx","--yes","vscode-eslint-language-server","--stdio"])

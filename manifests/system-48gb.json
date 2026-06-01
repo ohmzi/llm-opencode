@@ -1,15 +1,15 @@
 {
   "profile": "48GB MacBook Pro Qwen3.6 MLX 8-bit agentic coding profile",
-  "profile_file": "/Users/ohmz/StudioProjects/llm-opencode/scripts/lib/../../config/profile-48gb.env",
-  "target_user": "ohmz",
-  "target_home": "/Users/ohmz",
+  "profile_file": "/Users/oiqbal/AndroidStudioProjects/llm-opencode/scripts/lib/../../config/profile-48gb.env",
+  "target_user": "oiqbal",
+  "target_home": "/Users/oiqbal",
   "expected_memory_bytes": {
     "min": 48000000000,
     "max": 56000000000
   },
-  "home": "/Users/ohmz",
+  "home": "/Users/oiqbal",
   "arch": "arm64",
-  "hw_memsize_bytes": 25769803776,
+  "hw_memsize_bytes": 51539607552,
   "macos": {
     "ProductName": "macOS",
     "ProductVersion": "26.5",
@@ -30,15 +30,25 @@
     "chat_model_quantization": "8bit",
     "chat_context": 32768,
     "chat_output": 4096,
+    "fast_model": "local-fast",
+    "fast_model_source": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+    "fast_model_path": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+    "fast_model_format": "safetensors",
+    "fast_model_quantization": "4bit",
+    "fast_context": 32768,
+    "fast_output": 1024,
     "embedding_model": "text-embedding-nomic-embed-text-v1.5",
-    "runtime_ls": "LLM ENGINE                                         SELECTED    MODEL FORMAT\nllama.cpp-mac-arm64-apple-metal-advsimd@2.18.0        \u2713            GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@2.17.0                     GGUF    \nmlx-llm-mac-arm64-apple-metal-advsimd@1.8.5                        MLX     \nmlx-llm-mac-arm64-apple-metal-nax-advsimd@1.8.5       \u2713            MLX"
+    "runtime_ls": "LLM ENGINE                                        SELECTED    MODEL FORMAT\nllama.cpp-mac-arm64-apple-metal-advsimd@2.18.0       \u2713            GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@2.17.0                    GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@2.16.0                    GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@1.48.0                    GGUF    \nllama.cpp-mac-arm64-apple-metal-advsimd@1.46.0                    GGUF    \nmlx-llm-mac-arm64-apple-metal-advsimd@1.8.5          \u2713            MLX     \nmlx-llm-mac-arm64-apple-metal-advsimd@1.6.0                       MLX     \nmlx-llm-mac-arm64-apple-metal-advsimd@0.25.0                      MLX     \nmlx-llm-mac-arm64-apple-metal-advsimd@0.22.2                      MLX"
   },
   "opencode": {
-    "config": "/Users/ohmz/.config/opencode/opencode.json",
-    "desktop_state": "/Users/ohmz/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
-    "index_db": "/Users/ohmz/.cache/opencode/local-code-index.sqlite3",
-    "launch_env": "/Users/ohmz/.config/opencode/opencode-launch-env.sh",
-    "launch_agent": "/Users/ohmz/Library/LaunchAgents/com.ohmz.opencode.env.plist",
+    "config": "/Users/oiqbal/.config/opencode/opencode.json",
+    "desktop_state": "/Users/oiqbal/Library/Application Support/ai.opencode.desktop/opencode.global.dat",
+    "index_db": "/Users/oiqbal/.cache/opencode/local-code-index.sqlite3",
+    "launch_env": "/Users/oiqbal/.config/opencode/opencode-launch-env.sh",
+    "launch_agent": "/Users/oiqbal/Library/LaunchAgents/com.oiqbal.opencode.env.plist",
+    "default_agent": "fast",
+    "default_model": "lmstudio/local-fast",
+    "coding_model": "lmstudio/local-coder",
     "mcp": [
       "local_code_index",
       "local_dev_tools",
@@ -46,6 +56,9 @@
       "gh_grep"
     ],
     "agents": [
+      "fast",
+      "explain",
+      "indexer",
       "build",
       "plan",
       "codebase-researcher",
@@ -56,6 +69,7 @@
       "security-auditor"
     ],
     "commands": [
+      "/explain",
       "/research",
       "/debug",
       "/test",
