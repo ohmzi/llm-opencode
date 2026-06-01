@@ -1,8 +1,10 @@
-# LM Studio + OpenCode Backup: 48 GB MacBook Pro
+# LM Studio + OpenCode Backup Profiles
 
-This folder backs up the 48 GB Apple Silicon MacBook Pro local agentic coding setup.
+This folder backs up local OpenCode agentic coding profiles. The default profile is still the
+48 GB Apple Silicon MacBook Pro LM Studio setup. The Ubuntu RTX 3090 Lucebox setup is opt-in and
+must be selected with the profile/config environment variables shown below.
 
-Active profile:
+Default active profile:
 
 - LM Studio local server at `127.0.0.1:1234`
 - Fast default OpenCode model: `lmstudio/local-fast`
@@ -20,11 +22,13 @@ Active profile:
 - Slash commands: `/explain`, `/research`, `/debug`, `/test`, `/review`, `/docs`, `/security`, `/index`, `/implement`
 - LSP entries: `typescript`, `eslint`
 
-Model weights are not copied here. The repo stores model identifiers, runtime package metadata, scripts, MCPs, and docs so LM Studio remains the place that owns model downloads and updates.
+Model weights are not copied here. The repo stores model identifiers, runtime package metadata,
+scripts, MCPs, and docs; LM Studio and Lucebox model directories remain the places that own model
+downloads and updates.
 
 ## Source Of Truth
 
-All upgradeable setup variables live in:
+Default Mac profile variables live in:
 
 ```bash
 /Users/oiqbal/AndroidStudioProjects/llm-opencode/config/profile-48gb.env
@@ -53,6 +57,7 @@ An opt-in Ubuntu/NVIDIA profile is available for an i9 13th gen, 96 GB RAM, RTX 
 - Default Lucebox output cap: `2048`
 - Lucebox prefix cache: disabled with `--prefix-cache-slots 0` for stability
 - Idle behavior: the proxy starts the real Lucebox backend on demand at `127.0.0.1:18081` and stops it after 1 hour without API traffic
+- Request guard: the proxy clamps oversized chat `max_tokens` values to the configured Lucebox output cap
 
 Use it explicitly with:
 
@@ -71,6 +76,33 @@ The default backup remains the 48 GB Mac profile.
 - The `build` agent denies MCP tool namespaces by default to avoid repeated `local_code_index` and `local_dev_tools` loops. Use `/research` for MCP-backed discovery and `/implement` or `Build` for Qwen-backed edits.
 - Qwen must receive the `<|think_off|>` prelude from `config/qwen36-instructions.md`; `/no_think` was not enough for this LM Studio template.
 - `/explain` is intentionally fast and no-tool. For exact repository evidence, use `/research`.
+
+## Restore On Ubuntu RTX 3090
+
+Follow the full runbook in `PLAN-96GB-UBUNTU-NVIDIA.md`. The short path is:
+
+```bash
+cd /home/ohmz/StudioProjects/llm-opencode
+export OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env"
+export OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json"
+
+scripts/install-opencode-config-linux.sh
+scripts/ensure-lucebox-linux.sh
+scripts/install-lucebox-service-linux.sh
+scripts/ensure-lmstudio-models-linux.sh
+```
+
+Useful health checks:
+
+```bash
+curl -sS http://127.0.0.1:18080/health | jq .
+systemctl --user status lucebox-dflash-proxy.service lucebox-dflash.service --no-pager
+lms ps
+opencode run --model lucebox/luce-dflash --format json 'Reply exactly: OK'
+```
+
+Normal Ubuntu mode should show only the embedding model in LM Studio. The LM Studio Qwen chat model
+is rollback-only and should be loaded only with `LMSTUDIO_LOAD_CHAT_ROLLBACK=1`.
 
 ## Restore On The 48 GB Mac
 
@@ -107,6 +139,33 @@ Full validation on the 48 GB Mac:
 ```
 
 The full smoke test follows the active profile. On the Mac profile it loads the 32K `local-fast` and `local-coder` aliases, verifies fast no-tool generation, and keeps direct Qwen generation opt-in with `SMOKE_QWEN_GENERATION=1`. On the Ubuntu Lucebox profile it checks the Lucebox autowake proxy and chat path, keeps LM Studio embedding-only, exercises local MCPs, checks remote MCP reachability, and validates the OpenCode agent/command/LSP shape.
+
+For the Ubuntu RTX profile, always pass the profile and config explicitly:
+
+```bash
+OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
+OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
+scripts/smoke-test.sh
+```
+
+## Ubuntu RTX Troubleshooting
+
+- `prompt + max_tokens exceeds context window`: the Ubuntu profile should be `49152` context and
+  `2048` output. Reinstall with `scripts/install-opencode-config-linux.sh` and restart the stuck
+  OpenCode session if the TUI already received the error.
+- OpenCode appears stuck, GPU usage drops, and Lucebox logs show `snapshot_longer_than_prompt`:
+  prefix cache must be disabled. Confirm the backend command includes `--prefix-cache-slots 0`, then
+  reinstall/restart with `scripts/install-lucebox-service-linux.sh` and retry the OpenCode prompt.
+- First prompt after idle is slow: expected. `/health` does not wake the model, but `/v1/*` and
+  `/props` start `lucebox-dflash.service` and reload the model onto the RTX 3090.
+- LM Studio is using VRAM in normal mode: run `scripts/ensure-lmstudio-models-linux.sh`. It unloads
+  `local-coder` unless `LMSTUDIO_LOAD_CHAT_ROLLBACK=1` is set and reloads only the embedding model
+  with `--gpu off --ttl 3600`.
+- Local indexing is noisy: set `OPENCODE_INDEX_BACKGROUND=0` in the active profile to disable
+  background indexing, or increase `OPENCODE_INDEX_BACKGROUND_SECONDS` and
+  `OPENCODE_INDEX_AUTO_SYNC_SECONDS` above `300`.
+- Repeated shell warning `ohmzai: syntax error: unexpected end of file` is an unrelated shell
+  environment issue. It is noisy but did not block the OpenCode/Lucebox validation.
 
 ## Update This Backup From A 48 GB Live Setup
 

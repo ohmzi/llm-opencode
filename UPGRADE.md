@@ -41,7 +41,9 @@ When changing agents or commands, keep these loop-prevention rules unless there 
 - `/explain` remains fast/no-tool and conservative for project-specific questions.
 - Qwen instructions keep `<|think_off|>` at the top.
 
-Do not copy model weights into this repo. Store identifiers, source paths, runtime URLs, checksums, and scripts so LM Studio remains the place that owns model downloads and updates.
+Do not copy model weights into this repo. Store identifiers, source paths, runtime URLs, checksums,
+and scripts so LM Studio or Lucebox model directories remain the places that own model downloads and
+updates.
 
 ## Ubuntu RTX 3090 Profile
 
@@ -54,6 +56,23 @@ OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
 scripts/validate-profile-sync.sh
 ```
 
-Follow `PLAN-96GB-UBUNTU-NVIDIA.md` on the Linux target. That profile keeps `lmstudio/local-coder`,
-the same agents, commands, MCPs, RAG, and LSP shape, but changes the chat model to
-`Qwen3.6-27B-UD-Q5_K_XL.gguf` through LM Studio's Linux GGUF runtime.
+Follow `PLAN-96GB-UBUNTU-NVIDIA.md` on the Linux target. That profile keeps the same agents,
+commands, MCPs, RAG, and LSP shape, but changes the primary chat model to
+`lucebox/luce-dflash` through the Lucebox DFlash autowake proxy on `127.0.0.1:18080`.
+
+Current Ubuntu runtime contract:
+
+- Lucebox backend: `127.0.0.1:18081`, started on demand by the proxy.
+- Target model: `Qwen3.6-27B-Q4_K_M.gguf`.
+- Draft model: `dflash-draft-3.6-q4_k_m.gguf`.
+- Context/output: `49152` / `2048`.
+- Prefix cache: disabled with `--prefix-cache-slots 0`.
+- LM Studio: embedding-only in normal mode, rollback chat only with `LMSTUDIO_LOAD_CHAT_ROLLBACK=1`.
+
+Run Ubuntu validation with the profile explicitly selected:
+
+```bash
+OPENCODE_BACKUP_PROFILE="$PWD/config/profile-96gb-ubuntu-nvidia.env" \
+OPENCODE_BACKUP_CONFIG="$PWD/config/opencode-96gb-ubuntu-nvidia.json" \
+scripts/smoke-test.sh
+```
