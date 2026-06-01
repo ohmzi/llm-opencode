@@ -42,6 +42,12 @@ if [[ -n "${LUCEBOX_EXTRA_ARGS:-}" ]]; then
   extra_args=(${=LUCEBOX_EXTRA_ARGS})
 fi
 
+typeset -a prefix_cache_args
+prefix_cache_args=()
+if [[ -n "${LUCEBOX_PREFIX_CACHE_SLOTS:-}" ]]; then
+  prefix_cache_args=(--prefix-cache-slots "$LUCEBOX_PREFIX_CACHE_SLOTS")
+fi
+
 cd "$LUCEBOX_HOME"
 exec "$LUCEBOX_SERVER_BIN" "$LUCEBOX_TARGET" \
   --draft "$LUCEBOX_DRAFT" \
@@ -55,4 +61,5 @@ exec "$LUCEBOX_SERVER_BIN" "$LUCEBOX_TARGET" \
   --fa-window "$LUCEBOX_FA_WINDOW" \
   --cache-type-k "$LUCEBOX_CACHE_TYPE_K" \
   --cache-type-v "$LUCEBOX_CACHE_TYPE_V" \
+  "${prefix_cache_args[@]}" \
   "${extra_args[@]}"

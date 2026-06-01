@@ -49,7 +49,9 @@ An opt-in Ubuntu/NVIDIA profile is available for an i9 13th gen, 96 GB RAM, RTX 
 - Main model: `lucebox/luce-dflash` backed by `Qwen3.6-27B-Q4_K_M.gguf` + `dflash-draft-3.6-q4_k_m.gguf`
 - Rollback model: `lmstudio/local-coder`, kept configured but not auto-loaded in normal mode
 - Embeddings: LM Studio `text-embedding-nomic-embed-text-v1.5` on `127.0.0.1:1234`, loaded with `--gpu off --ttl 3600`
-- Default Lucebox context: `32768`
+- Default Lucebox context: `49152`
+- Default Lucebox output cap: `2048`
+- Lucebox prefix cache: disabled with `--prefix-cache-slots 0` for stability
 - Idle behavior: the proxy starts the real Lucebox backend on demand at `127.0.0.1:18081` and stops it after 1 hour without API traffic
 
 Use it explicitly with:

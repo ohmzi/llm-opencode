@@ -21,6 +21,7 @@ IDLE_UNLOAD_SECONDS = int(os.environ.get("LUCEBOX_IDLE_UNLOAD_SECONDS", "3600"))
 START_TIMEOUT_SECONDS = int(os.environ.get("LUCEBOX_START_TIMEOUT_SECONDS", "900"))
 REQUEST_TIMEOUT_SECONDS = int(os.environ.get("LUCEBOX_PROXY_REQUEST_TIMEOUT_SECONDS", "900"))
 IDLE_POLL_SECONDS = max(1, int(os.environ.get("LUCEBOX_IDLE_POLL_SECONDS", "15")))
+MAX_TOKENS_CAP = int(os.environ.get("LUCEBOX_PROXY_MAX_TOKENS", "0"))
 
 HOP_BY_HOP_HEADERS = {
     "connection",
@@ -183,6 +184,34 @@ def target_url(path):
     return f"{BACKEND_URL}{path}"
 
 
+def clamped_chat_body(path, body, headers):
+    if MAX_TOKENS_CAP <= 0 or not body:
+        return body, headers
+    if urllib.parse.urlsplit(path).path != "/v1/chat/completions":
+        return body, headers
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return body, headers
+    if not isinstance(payload, dict):
+        return body, headers
+
+    changed = False
+    for key in ("max_tokens", "max_completion_tokens"):
+        value = payload.get(key)
+        if isinstance(value, int) and value > MAX_TOKENS_CAP:
+            payload[key] = MAX_TOKENS_CAP
+            changed = True
+    if not changed:
+        return body, headers
+
+    log(f"clamped chat max_tokens to {MAX_TOKENS_CAP}")
+    updated = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    headers = dict(headers)
+    headers["Content-Type"] = "application/json"
+    return updated, headers
+
+
 class LuceboxProxyHandler(http.server.BaseHTTPRequestHandler):
     server_version = SERVER_NAME
 
@@ -245,6 +274,7 @@ class LuceboxProxyHandler(http.server.BaseHTTPRequestHandler):
             if lower in HOP_BY_HOP_HEADERS or lower == "host" or lower == "content-length":
                 continue
             headers[key] = value
+        body, headers = clamped_chat_body(self.path, body, headers)
 
         request = urllib.request.Request(
             target_url(self.path),

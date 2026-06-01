@@ -24,7 +24,9 @@ Model reference checked on 2026-05-31:
 - License: Apache 2.0
 
 The RTX 3090 has 24 GB VRAM, so this profile lets Lucebox own the card while active and starts with
-a `32768` token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`. OpenCode talks to an
+a `49152` token context, `2048` output cap, `tq3_0` KV, DDTree budget `22`, `--lazy-draft`,
+and prefix cache disabled with `--prefix-cache-slots 0` to avoid stale snapshot restore failures.
+OpenCode talks to an
 autowake proxy on `127.0.0.1:18080`; the real Lucebox backend binds to `127.0.0.1:18081` and is
 stopped after 1 hour without API traffic.
 
@@ -43,8 +45,9 @@ stopped after 1 hour without API traffic.
 - Main chat model: `lucebox/luce-dflash`
 - Rollback chat model: `Qwen3.6-27B-UD-Q5_K_XL.gguf`, wrapped locally as `unsloth/qwen3.6-27b`
 - Main runtime: Lucebox DFlash C++/CUDA on NVIDIA
-- Context: `32768`
-- Output: `4096`
+- Context: `49152`
+- Output: `2048`
+- Prefix cache slots: `0`
 - Embedding model: `text-embedding-nomic-embed-text-v1.5`, loaded through LM Studio with `--gpu off`
 - Lucebox API: `http://127.0.0.1:18080/v1` through the autowake proxy
 - Lucebox backend API: `http://127.0.0.1:18081/v1`
@@ -149,7 +152,8 @@ nvidia-smi
 
 The proxy service stays enabled at login, while `lucebox-dflash.service` is left disabled and starts
 only when the proxy receives `/v1/*` or `/props` traffic. `GET /health` checks proxy/backend status
-without waking the model.
+without waking the model. The proxy also clamps oversized chat completion requests to the configured
+output cap before forwarding them to Lucebox.
 
 ## Validate
 
