@@ -308,7 +308,8 @@
         "OPENCODE_INDEX_AUTO_SYNC_SECONDS": "300",
         "OPENCODE_INDEX_DB": "/home/ohmz/.cache/opencode/local-code-index.sqlite3",
         "LMSTUDIO_EMBEDDING_URL": "http://127.0.0.1:1234/v1/embeddings",
-        "LMSTUDIO_EMBEDDING_MODEL": "text-embedding-nomic-embed-text-v1.5"
+        "LMSTUDIO_EMBEDDING_MODEL": "text-embedding-nomic-embed-text-v1.5",
+        "LMSTUDIO_ENSURE_MODELS_SCRIPT": "/home/ohmz/.config/opencode/ensure-lmstudio-models-linux.sh"
       },
       "enabled": true,
       "timeout": 600000

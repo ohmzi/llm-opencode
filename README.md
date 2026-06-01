@@ -45,11 +45,12 @@ An opt-in Ubuntu/NVIDIA profile is available for an i9 13th gen, 96 GB RAM, RTX 
 - Setup plan: `PLAN-96GB-UBUNTU-NVIDIA.md`
 - Profile: `config/profile-96gb-ubuntu-nvidia.env`
 - OpenCode config: `config/opencode-96gb-ubuntu-nvidia.json`
-- Main model runtime: Lucebox DFlash on `127.0.0.1:18080`
+- Main model runtime: Lucebox DFlash through an autowake proxy on `127.0.0.1:18080`
 - Main model: `lucebox/luce-dflash` backed by `Qwen3.6-27B-Q4_K_M.gguf` + `dflash-draft-3.6-q4_k_m.gguf`
 - Rollback model: `lmstudio/local-coder`, kept configured but not auto-loaded in normal mode
-- Embeddings: LM Studio `text-embedding-nomic-embed-text-v1.5` on `127.0.0.1:1234`, loaded with `--gpu off`
+- Embeddings: LM Studio `text-embedding-nomic-embed-text-v1.5` on `127.0.0.1:1234`, loaded with `--gpu off --ttl 3600`
 - Default Lucebox context: `32768`
+- Idle behavior: the proxy starts the real Lucebox backend on demand at `127.0.0.1:18081` and stops it after 1 hour without API traffic
 
 Use it explicitly with:
 
@@ -103,7 +104,7 @@ Full validation on the 48 GB Mac:
 /Users/oiqbal/AndroidStudioProjects/llm-opencode/scripts/smoke-test.sh
 ```
 
-The full smoke test follows the active profile. On the Mac profile it loads the 32K `local-fast` and `local-coder` aliases, verifies fast no-tool generation, and keeps direct Qwen generation opt-in with `SMOKE_QWEN_GENERATION=1`. On the Ubuntu Lucebox profile it checks Lucebox chat, keeps LM Studio embedding-only, exercises local MCPs, checks remote MCP reachability, and validates the OpenCode agent/command/LSP shape.
+The full smoke test follows the active profile. On the Mac profile it loads the 32K `local-fast` and `local-coder` aliases, verifies fast no-tool generation, and keeps direct Qwen generation opt-in with `SMOKE_QWEN_GENERATION=1`. On the Ubuntu Lucebox profile it checks the Lucebox autowake proxy and chat path, keeps LM Studio embedding-only, exercises local MCPs, checks remote MCP reachability, and validates the OpenCode agent/command/LSP shape.
 
 ## Update This Backup From A 48 GB Live Setup
 

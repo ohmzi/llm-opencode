@@ -6,6 +6,7 @@ import math
 import os
 import pathlib
 import sqlite3
+import subprocess
 import sys
 import threading
 import time
@@ -18,6 +19,7 @@ SERVER_VERSION = "0.1.0"
 DEFAULT_DB = os.path.expanduser("~/.cache/opencode/local-code-index.sqlite3")
 DEFAULT_EMBED_URL = "http://127.0.0.1:1234/v1/embeddings"
 DEFAULT_EMBED_MODEL = "text-embedding-nomic-embed-text-v1.5"
+DEFAULT_LMSTUDIO_ENSURE_SCRIPT = "~/.config/opencode/ensure-lmstudio-models-linux.sh"
 DEFAULT_DESKTOP_STATE = os.path.expanduser(
     "~/Library/Application Support/ai.opencode.desktop/opencode.global.dat"
 )
@@ -240,6 +242,57 @@ def embed_model():
     return os.environ.get("LMSTUDIO_EMBEDDING_MODEL", DEFAULT_EMBED_MODEL)
 
 
+def lmstudio_ensure_script():
+    configured = os.environ.get("LMSTUDIO_ENSURE_MODELS_SCRIPT")
+    if configured:
+        return os.path.expanduser(configured)
+    candidates = [
+        os.path.expanduser(DEFAULT_LMSTUDIO_ENSURE_SCRIPT),
+        str(pathlib.Path(__file__).resolve().parent.parent / "ensure-lmstudio-models-linux.sh"),
+        str(pathlib.Path(__file__).resolve().parent.parent / "ensure-lmstudio-models.sh"),
+    ]
+    for candidate in candidates:
+        if pathlib.Path(candidate).exists():
+            return candidate
+    return candidates[0]
+
+
+def ensure_embedding_model():
+    script = lmstudio_ensure_script()
+    if not pathlib.Path(script).exists():
+        log(f"LM Studio ensure script not found: {script}")
+        return False
+    timeout_raw = os.environ.get("LMSTUDIO_ENSURE_TIMEOUT_SECONDS", "300")
+    try:
+        timeout = max(30, int(timeout_raw))
+    except ValueError:
+        timeout = 300
+    command = [script]
+    if script.endswith(".sh"):
+        command = ["/bin/zsh", script]
+    env = os.environ.copy()
+    env.setdefault("LMSTUDIO_LOAD_CHAT_ROLLBACK", "0")
+    try:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            env=env,
+            check=False,
+        )
+    except Exception as exc:
+        log(f"LM Studio embedding autoload failed: {exc}")
+        return False
+    if result.returncode == 0:
+        log("LM Studio embedding model ensured")
+        return True
+    detail = (result.stderr or result.stdout or "").strip()
+    log(f"LM Studio embedding autoload failed: {detail}")
+    return False
+
+
 def connect():
     path = db_path()
     pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -346,7 +399,7 @@ def decode_vector(blob):
     return data
 
 
-def embed(texts):
+def embed_once(texts):
     if not texts:
         return []
     payload = json.dumps({"model": embed_model(), "input": texts}).encode("utf-8")
@@ -368,6 +421,19 @@ def embed(texts):
         raise RuntimeError(f"embedding request failed: {body['error']}")
     rows = sorted(body.get("data", []), key=lambda item: item.get("index", 0))
     return [row["embedding"] for row in rows]
+
+
+def embed(texts):
+    if not texts:
+        return []
+    try:
+        return embed_once(texts)
+    except RuntimeError:
+        if not truthy("LMSTUDIO_EMBEDDING_AUTOLOAD", True):
+            raise
+        if ensure_embedding_model():
+            return embed_once(texts)
+        raise
 
 
 def is_unchanged(conn, root, rel_path, stat):

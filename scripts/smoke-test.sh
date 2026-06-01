@@ -183,7 +183,7 @@ if [[ "$OPENCODE_PROVIDER" == "${LUCEBOX_PROVIDER:-lucebox}" ]]; then
   if [[ "${SMOKE_SKIP_LUCEBOX:-0}" != "1" ]]; then
     require_profile_vars LUCEBOX_HEALTH_URL LUCEBOX_PROPS_URL LUCEBOX_BASE_URL LUCEBOX_MODEL_ID
     curl -fsS --max-time 20 "$LUCEBOX_HEALTH_URL" >/dev/null
-    ok "Lucebox health"
+    ok "Lucebox proxy health"
     curl -fsS --max-time 20 "$LUCEBOX_PROPS_URL" | jq -e '.server.name == "luce-dflash"' >/dev/null
     ok "Lucebox props"
     lucebox_payload="$(jq -n --arg model "$LUCEBOX_MODEL_ID" '{

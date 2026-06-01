@@ -31,6 +31,8 @@ else
   CONFIG="${OPENCODE_CONFIG:-$SCRIPT_DIR/opencode.json}"
 fi
 
+LMSTUDIO_ENSURE_MODELS_SCRIPT="${LMSTUDIO_ENSURE_MODELS_SCRIPT:-}"
+
 if [[ -n "${FAST_ID:-}" ]]; then
   jq -e \
     --arg provider "$OPENCODE_PROVIDER" \
@@ -110,6 +112,7 @@ else
   FALLBACK_DISPLAY=""
   FALLBACK_CONTEXT="0"
   FALLBACK_OUTPUT="0"
+  LMSTUDIO_ENSURE_MODELS_SCRIPT="${LMSTUDIO_ENSURE_MODELS_SCRIPT:-}"
   if [[ "$FALLBACK_PROVIDER" == "lmstudio" ]]; then
     FALLBACK_BASE_URL="$LMSTUDIO_BASE_URL"
     FALLBACK_MODEL_ID="$CHAT_ID"
@@ -176,6 +179,7 @@ jq -e \
   --arg db "$OPENCODE_INDEX_DB" \
   --arg embed_url "$LMSTUDIO_EMBEDDING_URL" \
   --arg embed_model "$EMBED_ID" \
+  --arg embed_ensure "$LMSTUDIO_ENSURE_MODELS_SCRIPT" \
   --arg dev_roots "$OPENCODE_DEV_ROOTS" \
   --arg dev_timeout "$LOCAL_DEV_COMMAND_TIMEOUT" \
   --arg dev_max_timeout "$LOCAL_DEV_MAX_TIMEOUT" \
@@ -191,6 +195,7 @@ jq -e \
   (.mcp.local_code_index.environment.OPENCODE_INDEX_DB == $db) and
   (.mcp.local_code_index.environment.LMSTUDIO_EMBEDDING_URL == $embed_url) and
   (.mcp.local_code_index.environment.LMSTUDIO_EMBEDDING_MODEL == $embed_model) and
+  ($embed_ensure == "" or .mcp.local_code_index.environment.LMSTUDIO_ENSURE_MODELS_SCRIPT == $embed_ensure) and
   (.mcp.local_dev_tools.environment.OPENCODE_DEV_ROOTS == $dev_roots) and
   (.mcp.local_dev_tools.environment.OPENCODE_DESKTOP_STATE == $desktop) and
   (.mcp.local_dev_tools.environment.LOCAL_DEV_COMMAND_TIMEOUT == $dev_timeout) and

@@ -33,6 +33,9 @@ fi
 export DFLASH27B_KV_K="$LUCEBOX_CACHE_TYPE_K"
 export DFLASH27B_KV_V="$LUCEBOX_CACHE_TYPE_V"
 
+LUCEBOX_BIND_HOST="${LUCEBOX_BACKEND_HOST:-$LUCEBOX_HOST}"
+LUCEBOX_BIND_PORT="${LUCEBOX_BACKEND_PORT:-$LUCEBOX_PORT}"
+
 typeset -a extra_args
 extra_args=()
 if [[ -n "${LUCEBOX_EXTRA_ARGS:-}" ]]; then
@@ -42,8 +45,8 @@ fi
 cd "$LUCEBOX_HOME"
 exec "$LUCEBOX_SERVER_BIN" "$LUCEBOX_TARGET" \
   --draft "$LUCEBOX_DRAFT" \
-  --host "$LUCEBOX_HOST" \
-  --port "$LUCEBOX_PORT" \
+  --host "$LUCEBOX_BIND_HOST" \
+  --port "$LUCEBOX_BIND_PORT" \
   --max-ctx "$LUCEBOX_CONTEXT" \
   --max-tokens "$LUCEBOX_OUTPUT" \
   --model-name "$LUCEBOX_MODEL_ID" \

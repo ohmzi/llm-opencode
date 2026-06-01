@@ -23,8 +23,10 @@ Model reference checked on 2026-05-31:
 - Draft file: `dflash-draft-3.6-q4_k_m.gguf`
 - License: Apache 2.0
 
-The RTX 3090 has 24 GB VRAM, so this profile lets Lucebox own the card and starts with a `32768`
-token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`.
+The RTX 3090 has 24 GB VRAM, so this profile lets Lucebox own the card while active and starts with
+a `32768` token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`. OpenCode talks to an
+autowake proxy on `127.0.0.1:18080`; the real Lucebox backend binds to `127.0.0.1:18081` and is
+stopped after 1 hour without API traffic.
 
 ## Components
 
@@ -34,6 +36,7 @@ token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`.
 - Linux install helper: `scripts/install-opencode-config-linux.sh`
 - Lucebox model/build helper: `scripts/ensure-lucebox-linux.sh`
 - Lucebox service helper: `scripts/install-lucebox-service-linux.sh`
+- Lucebox autowake proxy: `scripts/lucebox-autowake-proxy.py`
 - LM Studio embedding helper: `scripts/ensure-lmstudio-models-linux.sh`
 - Qwen instruction prelude: `~/.config/opencode/qwen36-instructions.md`
 - Local workflow instruction: `~/.config/opencode/local-coding-workflow.md`
@@ -43,7 +46,8 @@ token context, `tq3_0` KV, DDTree budget `22`, and `--lazy-draft`.
 - Context: `32768`
 - Output: `4096`
 - Embedding model: `text-embedding-nomic-embed-text-v1.5`, loaded through LM Studio with `--gpu off`
-- Lucebox API: `http://127.0.0.1:18080/v1`
+- Lucebox API: `http://127.0.0.1:18080/v1` through the autowake proxy
+- Lucebox backend API: `http://127.0.0.1:18081/v1`
 - LM Studio embedding API: `http://127.0.0.1:1234/v1`
 - Local index DB: `~/.cache/opencode/local-code-index.sqlite3`
 
@@ -128,6 +132,9 @@ lms load text-embedding-nomic-embed-text-v1.5 \
   --ttl 3600
 ```
 
+If the embedding model expires while OpenCode is running, `local_code_index` invokes the installed
+LM Studio ensure script once and retries the embedding request.
+
 For rollback testing only:
 
 ```bash
@@ -139,6 +146,10 @@ Watch VRAM during first Lucebox load and first request:
 ```bash
 nvidia-smi
 ```
+
+The proxy service stays enabled at login, while `lucebox-dflash.service` is left disabled and starts
+only when the proxy receives `/v1/*` or `/props` traffic. `GET /health` checks proxy/backend status
+without waking the model.
 
 ## Validate
 
@@ -168,7 +179,8 @@ Expected:
 
 - OpenCode config parses with `jq`.
 - Profile and config are in sync.
-- Lucebox responds on `127.0.0.1:18080`.
+- Lucebox proxy responds on `127.0.0.1:18080`.
+- Lucebox backend wakes on demand at `127.0.0.1:18081` and releases VRAM after idle unload.
 - LM Studio has only the embedding model loaded in normal mode.
 - LM Studio listens only on `127.0.0.1:1234`.
 - Lucebox generation returns `OK lucebox`.
